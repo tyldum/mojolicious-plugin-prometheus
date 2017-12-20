@@ -1,9 +1,6 @@
 language: perl
 perl:
   - "5.26"
-  - "5.20"
-  - "5.16"
-  - "5.10"
 env:
   - "HARNESS_OPTIONS=j6"
 install:
@@ -11,3 +8,12 @@ install:
   - "cpanm -n --installdeps ."
 notifications:
   email: true
+matrix:
+  include:
+    - perl: 5.26
+      env: COVERAGE=1   # enables coverage+coveralls reporting
+  allow_failures:
+    - perl: blead       # ignore failures for blead perl
+sudo: false             # faster builds as long as you don't need sudo access
+before_install:
+  - eval $(curl https://travis-perl.github.io/init) --auto
