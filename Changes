@@ -2,6 +2,9 @@ Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
 
+0.9.1 2017-12-20T21:12:12Z
+    - No changes
+
 0.9 2017-12-20T21:09:43Z
     - First version to CPAN
 

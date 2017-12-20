@@ -9,7 +9,3 @@ license="artistic_2"
 include_dotfiles = false
 
 badges = ['travis','metacpan']
-
-[release]
-do_not_upload_to_cpan=false
-
