@@ -2,6 +2,10 @@ Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
 
+0.3 2017-12-20T20:32:25Z
+    - More tests
+    - Documentation
+
 0.2 2017-12-20T20:06:26Z
     - Documentation typos
 

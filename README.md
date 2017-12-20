@@ -45,8 +45,7 @@ Register plugin in [Mojolicious](https://metacpan.org/pod/Mojolicious) applicati
 
     Override the [Net::Prometheus](https://metacpan.org/pod/Net::Prometheus) object. The default is a new singleton instance of [Net::Prometheus](https://metacpan.org/pod/Net::Prometheus).
 
-- namespace
-- subsystem
+- namespace, subsystem
 
     These will be prefixed to the metrics exported.
 
@@ -55,12 +54,12 @@ Register plugin in [Mojolicious](https://metacpan.org/pod/Mojolicious) applicati
 In addition to exporting the default process metrics that [Net::Prometheus](https://metacpan.org/pod/Net::Prometheus) already export
 this plugin will also export
 
-- http\_requests\_total, counter partitioned over HTTP method and HTTP response code
-- http\_request\_duration\_seconds, histogram partitoned over HTTP method
+- `http_requests_total`, counter partitioned over HTTP method and HTTP response code
+- `http_request_duration_seconds`, histogram partitoned over HTTP method
 
 # AUTHOR
 
-Vidar Tyldum
+Vidar Tyldum, [mailto:vidar@tyldum.com](mailto:vidar@tyldum.com)
 
 # COPYRIGHT AND LICENSE
 Copyright (C) 2017, Vidar Tyldum
