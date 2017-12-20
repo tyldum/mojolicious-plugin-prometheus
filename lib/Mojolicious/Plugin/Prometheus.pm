@@ -126,9 +126,7 @@ Default: /metrics
 
 Override the L<Net::Prometheus> object. The default is a new singleton instance of L<Net::Prometheus>.
 
-=item * namespace
-
-=item * subsystem
+=item * namespace, subsystem
 
 These will be prefixed to the metrics exported.
 
@@ -141,15 +139,15 @@ this plugin will also export
 
 =over 2
 
-=item http_requests_total, counter partitioned over HTTP method and HTTP response code
+=item C<http_requests_total>, counter partitioned over HTTP method and HTTP response code
 
-=item http_request_duration_seconds, histogram partitoned over HTTP method
+=item C<http_request_duration_seconds>, histogram partitoned over HTTP method
 
 =back
 
 =head1 AUTHOR
 
-Vidar Tyldum
+Vidar Tyldum, L<mailto:vidar@tyldum.com>
 
 =head1 COPYRIGHT AND LICENSE
 Copyright (C) 2017, Vidar Tyldum
