@@ -114,7 +114,7 @@ Register plugin in L<Mojolicious> application.
 
 C<%config> can have:
 
-=over2
+=over 2
 
 =item * path
 
@@ -139,7 +139,7 @@ These will be prefixed to the metrics exported.
 In addition to exporting the default process metrics that L<Net::Prometheus> already export
 this plugin will also export
 
-=over2
+=over 2
 
 =item http_requests_total, counter partitioned over HTTP method and HTTP response code
 
@@ -153,12 +153,13 @@ Vidar Tyldum
 
 =head1 COPYRIGHT AND LICENSE
 Copyright (C) 2017, Vidar Tyldum
+
 This program is free software, you can redistribute it and/or modify it under
 the terms of the Artistic License version 2.0.
 
 =head1 SEE ALSO
 
-=over2
+=over 2
 
 =item L<Net::Prometheus>
 
