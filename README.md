@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/tyldum/mojolicious-plugin-prometheus.svg?branch=master)](https://travis-ci.org/tyldum/mojolicious-plugin-prometheus) [![MetaCPAN Release](https://badge.fury.io/pl/Mojolicious-Plugin-Prometheus.svg)](https://metacpan.org/release/Mojolicious-Plugin-Prometheus)
 # NAME
 
 Mojolicious::Plugin::Prometheus - Mojolicious Plugin
@@ -59,7 +60,7 @@ this plugin will also export
 
 # AUTHOR
 
-Vidar Tyldum, [mailto:vidar@tyldum.com](mailto:vidar@tyldum.com)
+Vidar Tyldum
 
 # COPYRIGHT AND LICENSE
 Copyright (C) 2017, Vidar Tyldum
