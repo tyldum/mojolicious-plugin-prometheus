@@ -147,7 +147,7 @@ this plugin will also export
 
 =head1 AUTHOR
 
-Vidar Tyldum, L<mailto:vidar@tyldum.com>
+Vidar Tyldum
 
 =head1 COPYRIGHT AND LICENSE
 Copyright (C) 2017, Vidar Tyldum
