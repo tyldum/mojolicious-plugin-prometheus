@@ -64,6 +64,7 @@ Vidar Tyldum
 
 # COPYRIGHT AND LICENSE
 Copyright (C) 2017, Vidar Tyldum
+
 This program is free software, you can redistribute it and/or modify it under
 the terms of the Artistic License version 2.0.
 
@@ -73,31 +74,3 @@ the terms of the Artistic License version 2.0.
 - [Mojolicious](https://metacpan.org/pod/Mojolicious)
 - [Mojolicious::Guides](https://metacpan.org/pod/Mojolicious::Guides)
 - [http://mojolicious.org](http://mojolicious.org)
-
-# POD ERRORS
-
-Hey! **The above document had some coding errors, which are explained below:**
-
-- Around line 117:
-
-    Unknown directive: =over2
-
-- Around line 119:
-
-    '=item' outside of any '=over'
-
-- Around line 142:
-
-    Unknown directive: =over2
-
-- Around line 144:
-
-    '=item' outside of any '=over'
-
-- Around line 161:
-
-    Unknown directive: =over2
-
-- Around line 163:
-
-    '=item' outside of any '=over'
