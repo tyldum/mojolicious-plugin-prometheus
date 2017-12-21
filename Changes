@@ -1,7 +1,10 @@
 Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
+
+1.0.2 2017-12-21T20:19:08Z
     - Documentation fixes
+    - Make all core tests OS indepedent
 
 1.0.1 2017-12-21T16:48:54Z
     - Cleanup docs, add custom buckets for duration
