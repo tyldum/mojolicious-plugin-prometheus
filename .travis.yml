@@ -4,6 +4,7 @@ perl:
 env:
   - "HARNESS_OPTIONS=j6"
 install:
+  - "cpanm --quiet --notest --skip-satisfied Devel::Cover::Report::Codecov"
   - "cpanm -n Test::Pod Test::Pod::Coverage YAML"
   - "cpanm -n --installdeps ."
 notifications:
@@ -17,3 +18,5 @@ matrix:
 sudo: false             # faster builds as long as you don't need sudo access
 before_install:
   - eval $(curl https://travis-perl.github.io/init) --auto
+after_success:
+  - cover -report codecov
