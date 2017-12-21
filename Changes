@@ -2,6 +2,9 @@ Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
 
+1.0 2017-12-21T12:47:47Z
+    - Collect metrics about request and response sizes
+
 0.9.4 2017-12-21T07:18:55Z
     - Just fixing tests
 

@@ -50,13 +50,27 @@ Register plugin in [Mojolicious](https://metacpan.org/pod/Mojolicious) applicati
 
     These will be prefixed to the metrics exported.
 
+- request\_buckets
+
+    Override buckets for request sizes histogram.
+    Default:
+      (1, 50, 100, 1\_000, 10\_000, 50\_000, 100\_000, 500\_000, 1\_000\_000)
+
+- response\_buckets
+
+    Override buckets for response sizes histogram.
+    Default:
+      (5, 50, 100, 1\_000, 10\_000, 50\_000, 100\_000, 500\_000, 1\_000\_000)
+
 # METRICS
 
 In addition to exporting the default process metrics that [Net::Prometheus](https://metacpan.org/pod/Net::Prometheus) already export
 this plugin will also export
 
-- `http_requests_total`, counter partitioned over HTTP method and HTTP response code
-- `http_request_duration_seconds`, histogram partitoned over HTTP method
+- `http_requests_total`, request counter partitioned over HTTP method and HTTP response code
+- `http_request_duration_seconds`, request duration histogram partitoned over HTTP method
+- `http_request_size_bytes`, request size histogram partitoned over HTTP method
+- `http_response_size_bytes`, response size histogram partitoned over HTTP method
 
 # AUTHOR
 
