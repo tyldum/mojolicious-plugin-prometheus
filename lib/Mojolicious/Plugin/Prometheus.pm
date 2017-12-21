@@ -160,6 +160,18 @@ Override the L<Net::Prometheus> object. The default is a new singleton instance 
 
 These will be prefixed to the metrics exported.
 
+=item * request_buckets
+
+Override buckets for request sizes histogram.
+Default:
+  (1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)
+
+=item * response_buckets
+
+Override buckets for response sizes histogram.
+Default:
+  (5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)
+
 =back
 
 =head1 METRICS
@@ -169,9 +181,13 @@ this plugin will also export
 
 =over 2
 
-=item C<http_requests_total>, counter partitioned over HTTP method and HTTP response code
+=item * C<http_requests_total>, request counter partitioned over HTTP method and HTTP response code
 
-=item C<http_request_duration_seconds>, histogram partitoned over HTTP method
+=item * C<http_request_duration_seconds>, request duration histogram partitoned over HTTP method
+
+=item * C<http_request_size_bytes>, request size histogram partitoned over HTTP method
+
+=item * C<http_response_size_bytes>, response size histogram partitoned over HTTP method
 
 =back
 
