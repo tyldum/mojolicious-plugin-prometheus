@@ -23,11 +23,6 @@ has http_requests_total => sub {
 sub register {
     my ( $self, $app, $config ) = @_;
 
-    my @request_buckets = $config->{request_buckets}
-        // (1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000);
-    my @response_buckets = $config->{response_buckets}
-        // (5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000);
-
     $self->http_request_duration_seconds(
         $self->prometheus->new_histogram(
             namespace => $config->{namespace} // undef,
@@ -45,7 +40,7 @@ sub register {
             name      => "http_request_size_bytes",
             help      => "Histogram containing request sizes",
             labels    => [qw/method/],
-            buckets   => \@request_buckets,
+            buckets   => $config->{request_buckets} // [(1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)],
         )
     );
 
@@ -56,7 +51,7 @@ sub register {
             name      => "http_response_size_bytes",
             help      => "Histogram containing response sizes",
             labels    => [qw/method code/],
-            buckets   => \@response_buckets,
+            buckets   => $config->{response_buckets} // [(5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)],
         )
     );
 
