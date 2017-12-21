@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/tyldum/mojolicious-plugin-prometheus.svg?branch=master)](https://travis-ci.org/tyldum/mojolicious-plugin-prometheus) [![MetaCPAN Release](https://badge.fury.io/pl/Mojolicious-Plugin-Prometheus.svg)](https://metacpan.org/release/Mojolicious-Plugin-Prometheus)
+[![Build Status](https://travis-ci.org/tyldum/mojolicious-plugin-prometheus.svg?branch=master)](https://travis-ci.org/tyldum/mojolicious-plugin-prometheus) [![MetaCPAN Release](https://badge.fury.io/pl/Mojolicious-Plugin-Prometheus.svg)](https://metacpan.org/release/Mojolicious-Plugin-Prometheus) [![Coverage Status](http://codecov.io/github/tyldum/mojolicious-plugin-prometheus/coverage.svg?branch=master)](https://codecov.io/github/tyldum/mojolicious-plugin-prometheus?branch=master)
 # NAME
 
 Mojolicious::Plugin::Prometheus - Mojolicious Plugin
@@ -11,6 +11,9 @@ Mojolicious::Plugin::Prometheus - Mojolicious Plugin
     # Mojolicious::Lite
     plugin 'Prometheus';
 
+    # Mojolicious::Lite, with custom response buckets (seconds)
+    plugin 'Prometheus' => { response_buckets => [qw/4 5 6/] };
+
 # DESCRIPTION
 
 [Mojolicious::Plugin::Prometheus](https://metacpan.org/pod/Mojolicious::Plugin::Prometheus) is a [Mojolicious](https://metacpan.org/pod/Mojolicious) plugin that exports Prometheus metrics from Mojolicious.
@@ -22,6 +25,7 @@ Hooks are also installed to measure requests response time and count requests ba
 ## prometheus
 
 Create further instrumentation into your application by using this helper which gives access to the [Net::Prometheus](https://metacpan.org/pod/Net::Prometheus) object.
+See [Net::Prometheus](https://metacpan.org/pod/Net::Prometheus) for usage.
 
 # METHODS
 
@@ -53,14 +57,17 @@ Register plugin in [Mojolicious](https://metacpan.org/pod/Mojolicious) applicati
 - request\_buckets
 
     Override buckets for request sizes histogram.
-    Default:
-      (1, 50, 100, 1\_000, 10\_000, 50\_000, 100\_000, 500\_000, 1\_000\_000)
+    Default: `(1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)`
 
 - response\_buckets
 
     Override buckets for response sizes histogram.
-    Default:
-      (5, 50, 100, 1\_000, 10\_000, 50\_000, 100\_000, 500\_000, 1\_000\_000)
+    Default: `(5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)`
+
+- duration\_buckets
+
+    Override buckets for request duration histogram.
+    Default: `(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10`
 
 # METRICS
 
@@ -77,6 +84,7 @@ this plugin will also export
 Vidar Tyldum
 
 # COPYRIGHT AND LICENSE
+
 Copyright (C) 2017, Vidar Tyldum
 
 This program is free software, you can redistribute it and/or modify it under

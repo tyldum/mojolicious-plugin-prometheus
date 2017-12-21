@@ -2,6 +2,9 @@ Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
 
+1.0.1 2017-12-21T16:48:54Z
+    - Cleanup docs, add custom buckets for duration
+
 1.0 2017-12-21T12:47:47Z
     - Collect metrics about request and response sizes
 
