@@ -10,6 +10,12 @@ has route => sub {undef};
 has http_request_duration_seconds => sub {
     undef;
 };
+has http_request_size_bytes => sub {
+    undef;
+};
+has http_response_size_bytes => sub {
+    undef;
+};
 has http_requests_total => sub {
     undef;
 };
@@ -17,13 +23,40 @@ has http_requests_total => sub {
 sub register {
     my ( $self, $app, $config ) = @_;
 
+    my @request_buckets = $config->{request_buckets}
+        // (1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000);
+    my @response_buckets = $config->{response_buckets}
+        // (5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000);
+
     $self->http_request_duration_seconds(
         $self->prometheus->new_histogram(
             namespace => $config->{namespace} // undef,
             subsystem => $config->{subsystem} // undef,
             name      => "http_request_duration_seconds",
-            help      => "Summary request processing time",
+            help      => "Histogram with request processing time",
             labels    => [qw/method/],
+        )
+    );
+
+    $self->http_request_size_bytes(
+        $self->prometheus->new_histogram(
+            namespace => $config->{namespace} // undef,
+            subsystem => $config->{subsystem} // undef,
+            name      => "http_request_size_bytes",
+            help      => "Histogram containing request sizes",
+            labels    => [qw/method/],
+            buckets   => \@request_buckets,
+        )
+    );
+
+    $self->http_response_size_bytes(
+        $self->prometheus->new_histogram(
+            namespace => $config->{namespace} // undef,
+            subsystem => $config->{subsystem} // undef,
+            name      => "http_response_size_bytes",
+            help      => "Histogram containing response sizes",
+            labels    => [qw/method code/],
+            buckets   => \@response_buckets,
         )
     );
 
@@ -50,6 +83,7 @@ sub register {
         before_dispatch => sub {
             my ($c) = @_;
             $c->stash( 'prometheus.start_time' => [gettimeofday] );
+            $self->http_request_size_bytes->observe( $c->req->method, $c->req->content->asset->size );
         }
     );
 
@@ -65,6 +99,7 @@ sub register {
         after_dispatch => sub {
             my ($c) = @_;
             $self->http_requests_total->inc( $c->req->method, $c->res->code );
+            $self->http_response_size_bytes->observe( $c->req->method, $c->res->code, $c->res->content->asset->size );
         }
     );
 
