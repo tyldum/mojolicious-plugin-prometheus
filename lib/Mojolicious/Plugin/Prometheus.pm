@@ -30,6 +30,7 @@ sub register {
             name      => "http_request_duration_seconds",
             help      => "Histogram with request processing time",
             labels    => [qw/method/],
+            buckets   => $config->{duration_buckets} // undef,
         )
     );
 
@@ -119,6 +120,9 @@ Mojolicious::Plugin::Prometheus - Mojolicious Plugin
   # Mojolicious::Lite
   plugin 'Prometheus';
 
+  # Mojolicious::Lite, with custom response buckets (seconds)
+  plugin 'Prometheus' => { response_buckets => [qw/4 5 6/] };
+
 =head1 DESCRIPTION
 
 L<Mojolicious::Plugin::Prometheus> is a L<Mojolicious> plugin that exports Prometheus metrics from Mojolicious.
@@ -130,6 +134,7 @@ Hooks are also installed to measure requests response time and count requests ba
 =head2 prometheus
 
 Create further instrumentation into your application by using this helper which gives access to the L<Net::Prometheus> object.
+See L<Net::Prometheus> for usage.
 
 =head1 METHODS
 
@@ -163,14 +168,17 @@ These will be prefixed to the metrics exported.
 =item * request_buckets
 
 Override buckets for request sizes histogram.
-Default:
-  (1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)
+Default: C<(1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)>
 
 =item * response_buckets
 
 Override buckets for response sizes histogram.
-Default:
-  (5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)
+Default: C<(5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)>
+
+=item * duration_buckets
+
+Override buckets for request duration histogram.
+Default: C<(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10>
 
 =back
 
@@ -196,6 +204,7 @@ this plugin will also export
 Vidar Tyldum
 
 =head1 COPYRIGHT AND LICENSE
+
 Copyright (C) 2017, Vidar Tyldum
 
 This program is free software, you can redistribute it and/or modify it under
