@@ -1,5 +1,5 @@
 requires 'Mojolicious';
-requires 'Net::Prometheus';
+requires 'Net::Prometheus', '0.05';
 requires 'Time::HiRes';
 
 on 'test' => sub {
