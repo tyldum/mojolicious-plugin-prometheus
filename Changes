@@ -2,6 +2,9 @@ Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
 
+1.0.3 2017-12-22T09:08:46Z
+    - Require at least 0.05 of Net::Prometheus
+
 1.0.2 2017-12-21T20:19:08Z
     - Documentation fixes
     - Make all core tests OS indepedent
