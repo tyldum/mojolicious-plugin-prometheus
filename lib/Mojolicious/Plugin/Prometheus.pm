@@ -143,7 +143,7 @@ L<Mojolicious::Plugin> and implements the following new ones.
 
 =head2 register
 
-  $plugin->register($app, \&config);
+  $plugin->register($app, \%config);
 
 Register plugin in L<Mojolicious> application.
 
