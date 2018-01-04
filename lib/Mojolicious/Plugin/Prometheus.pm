@@ -191,8 +191,8 @@ Default: C<(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0
 
 =head1 METRICS
 
-In addition to exporting the default process metrics that L<Net::Prometheus> already export
-this plugin will also export
+In addition to exposing the default process metrics that L<Net::Prometheus> already expose
+this plugin will also expose
 
 =over 2
 
