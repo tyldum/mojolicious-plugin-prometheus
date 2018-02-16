@@ -3,7 +3,7 @@ use Mojo::Base 'Mojolicious::Plugin';
 use Time::HiRes qw/gettimeofday tv_interval/;
 use Net::Prometheus;
 
-our $VERSION = '1.0.4';
+our $VERSION = '1.1.0';
 
 has prometheus => sub { state $prom = _init_prometheus() };
 has route => sub {undef};
