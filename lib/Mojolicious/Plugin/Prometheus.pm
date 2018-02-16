@@ -5,7 +5,7 @@ use Net::Prometheus;
 
 our $VERSION = '1.0.4';
 
-has prometheus => sub { state $prom = Net::Prometheus->new };
+has prometheus => sub { state $prom = _init_prometheus() };
 has route => sub {undef};
 has http_request_duration_seconds => sub {
   undef;
@@ -19,6 +19,13 @@ has http_response_size_bytes => sub {
 has http_requests_total => sub {
   undef;
 };
+
+sub _init_prometheus {
+  my $prom = Net::Prometheus->new(disable_process_collector => 1);
+  my $process_collector = Net::Prometheus::ProcessCollector->new(labels => [ worker => $$ ]);
+  $prom->register($process_collector);
+  return $prom;
+}
 
 sub register {
   my ($self, $app, $config) = @_;
