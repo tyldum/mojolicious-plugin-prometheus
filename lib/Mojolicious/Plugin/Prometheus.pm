@@ -29,7 +29,7 @@ sub register {
       subsystem => $config->{subsystem}        // undef,
       name      => "http_request_duration_seconds",
       help      => "Histogram with request processing time",
-      labels    => [qw/method/],
+      labels    => [qw/worker method/],
       buckets   => $config->{duration_buckets} // undef,
     )
   );
@@ -40,7 +40,7 @@ sub register {
       subsystem => $config->{subsystem} // undef,
       name      => "http_request_size_bytes",
       help      => "Histogram containing request sizes",
-      labels    => [qw/method/],
+      labels    => [qw/worker method/],
       buckets   => $config->{request_buckets}
         // [(1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)],
     )
@@ -52,7 +52,7 @@ sub register {
       subsystem => $config->{subsystem} // undef,
       name      => "http_response_size_bytes",
       help      => "Histogram containing response sizes",
-      labels    => [qw/method code/],
+      labels    => [qw/worker method code/],
       buckets   => $config->{response_buckets}
         // [(5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)],
     )
@@ -65,7 +65,7 @@ sub register {
       name      => "http_requests_total",
       help =>
         "How many HTTP requests processed, partitioned by status code and HTTP method.",
-      labels => [qw/method code/],
+      labels => [qw/worker method code/],
     )
   );
 
@@ -81,7 +81,7 @@ sub register {
     before_dispatch => sub {
       my ($c) = @_;
       $c->stash('prometheus.start_time' => [gettimeofday]);
-      $self->http_request_size_bytes->observe($c->req->method,
+      $self->http_request_size_bytes->observe($$, $c->req->method,
         $c->req->content->asset->size);
     }
   );
@@ -89,7 +89,7 @@ sub register {
   $app->hook(
     after_render => sub {
       my ($c) = @_;
-      $self->http_request_duration_seconds->observe($c->req->method,
+      $self->http_request_duration_seconds->observe($$, $c->req->method,
         tv_interval($c->stash('prometheus.start_time')));
     }
   );
@@ -97,8 +97,8 @@ sub register {
   $app->hook(
     after_dispatch => sub {
       my ($c) = @_;
-      $self->http_requests_total->inc($c->req->method, $c->res->code);
-      $self->http_response_size_bytes->observe($c->req->method, $c->res->code,
+      $self->http_requests_total->inc($$, $c->req->method, $c->res->code);
+      $self->http_response_size_bytes->observe($$, $c->req->method, $c->res->code,
         $c->res->content->asset->size);
     }
   );
