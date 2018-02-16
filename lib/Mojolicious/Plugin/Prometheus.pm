@@ -22,8 +22,13 @@ has http_requests_total => sub {
 
 sub _init_prometheus {
   my $prom = Net::Prometheus->new(disable_process_collector => 1);
-  my $process_collector = Net::Prometheus::ProcessCollector->new(labels => [ worker => $$ ]);
-  $prom->register($process_collector);
+  Mojo::IOLoop->next_tick(
+    sub {
+      my $process_collector
+        = Net::Prometheus::ProcessCollector->new(labels => [worker => $$]);
+      $prom->register($process_collector);
+    }
+  );
   return $prom;
 }
 
@@ -212,6 +217,12 @@ this plugin will also expose
 =item * C<http_response_size_bytes>, response size histogram partitoned over HTTP method
 
 =back
+
+=head1 RUNNING UNDER HYPNOTOAD
+
+When running under a preforking daemon like L<Hypnotoad|Mojo::Server::Hypnotoad>, you will not get global metrics but only the metrics of each worker, randomly.
+
+The C<worker> label will include the pid of the current worker so metrics can be aggregated per worker in Prometheus.
 
 =head1 AUTHOR
 
