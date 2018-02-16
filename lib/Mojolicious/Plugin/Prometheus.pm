@@ -94,7 +94,7 @@ sub register {
       my ($c) = @_;
       $c->stash('prometheus.start_time' => [gettimeofday]);
       $self->http_request_size_bytes->observe($$, $c->req->method,
-        $c->req->content->asset->size);
+        $c->req->content->body_size);
     }
   );
 
@@ -111,7 +111,7 @@ sub register {
       my ($c) = @_;
       $self->http_requests_total->inc($$, $c->req->method, $c->res->code);
       $self->http_response_size_bytes->observe($$, $c->req->method, $c->res->code,
-        $c->res->content->asset->size);
+        $c->res->content->body_size);
     }
   );
 
