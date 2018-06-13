@@ -224,6 +224,8 @@ When running under a preforking daemon like L<Hypnotoad|Mojo::Server::Hypnotoad>
 
 The C<worker> label will include the pid of the current worker so metrics can be aggregated per worker in Prometheus.
 
+If you prefer to get the global metrics from any worker, then see L<Mojolicious::Plugin::Prometheus::Shared::FastMmap> for a possible solution.
+
 =head1 AUTHOR
 
 Vidar Tyldum
@@ -238,6 +240,8 @@ the terms of the Artistic License version 2.0.
 =head1 SEE ALSO
 
 =over 2
+
+=item L<Mojolicious::Plugin::Prometheus::Shared::FastMmap>
 
 =item L<Net::Prometheus>
 
