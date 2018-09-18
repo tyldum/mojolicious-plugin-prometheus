@@ -2,6 +2,7 @@ requires 'Mojolicious';
 requires 'Net::Prometheus', '0.05';
 requires 'Time::HiRes';
 requires 'IPC::ShareLite';
+requires 'Sereal';
 
 on 'test' => sub {
     requires 'Test::More', '0.98';
