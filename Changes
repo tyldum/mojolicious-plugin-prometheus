@@ -1,6 +1,8 @@
 Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
+
+1.2.1 2018-09-18T19:03:52Z
     - Correct packaging error
 
 1.2.0 2018-09-18T18:38:01Z
