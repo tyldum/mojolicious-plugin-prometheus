@@ -1,6 +1,10 @@
 Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
+    - Correct packaging error
+
+1.2.0 2018-09-18T18:38:01Z
+    - Support running under preforking daemon
 
 1.1.1 2018-06-13T08:03:13Z
     - No change other than updated POD
