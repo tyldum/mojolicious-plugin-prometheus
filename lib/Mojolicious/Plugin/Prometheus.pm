@@ -152,8 +152,8 @@ sub _start {
 
   Mojo::IOLoop->next_tick(
     sub {
-      $self->prometheus->register(
-        Net::Prometheus::ProcessCollector->new(labels => [worker => $$]));
+      my $pc = Net::Prometheus::ProcessCollector->new(labels => [worker => $$]);
+      $self->prometheus->register($pc) if $pc;
       $self->_guard->_store({$$ => $self->prometheus->render});
     }
   );
