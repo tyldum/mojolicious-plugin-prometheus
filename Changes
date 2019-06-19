@@ -1,6 +1,7 @@
 Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
+    - Make test suite pass on osx
 
 1.2.1 2018-09-18T19:03:52Z
     - Correct packaging error
