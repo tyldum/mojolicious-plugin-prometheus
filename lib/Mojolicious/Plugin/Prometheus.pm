@@ -119,7 +119,7 @@ sub register {
   );
 
 
-  my $prefix = $config->{route} // $app->routes->get('/');
+  my $prefix = $config->{route} // $app->routes->under('/');
   $self->route($prefix->get($config->{path} // '/metrics'));
   $self->route->to(
     cb => sub {
