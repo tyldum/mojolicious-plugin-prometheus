@@ -4,7 +4,7 @@ use Time::HiRes qw/gettimeofday tv_interval/;
 use Net::Prometheus;
 use IPC::ShareLite;
 
-our $VERSION = '1.3.0';
+our $VERSION = '1.3.1';
 
 has prometheus => sub { Net::Prometheus->new(disable_process_collector => 1) };
 has route => sub {undef};
