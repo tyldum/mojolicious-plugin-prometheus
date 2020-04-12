@@ -76,6 +76,11 @@ Register plugin in [Mojolicious](https://metacpan.org/pod/Mojolicious) applicati
 
     Key used for shared memory access between workers, see [$key in IPc::ShareLite](https://metacpan.org/pod/IPC::ShareLite) for details.
 
+- route
+
+    [Mojolicious::Routes::Route](https://metacpan.org/pod/Mojolicious::Routes::Route) object to attach the metrics to, defaults to generating a new one for '/'.
+
+
 # METRICS
 
 In addition to exposing the default process metrics that [Net::Prometheus](https://metacpan.org/pod/Net::Prometheus) already expose

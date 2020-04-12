@@ -119,7 +119,8 @@ sub register {
   );
 
 
-  $self->route($app->routes->get($config->{path} // '/metrics'));
+  my $prefix = $config->{route} // $app->routes->under('/');
+  $self->route($prefix->get($config->{path} // '/metrics'));
   $self->route->to(
     cb => sub {
       my ($c) = @_;
