@@ -27,6 +27,7 @@ sub register {
 
   $self->{key} = $config->{shm_key} || '12345';
 
+	$self->prometheus($config->{prometheus}) if $config->{prometheus};
   $app->helper(prometheus => sub { $self->prometheus });
 
   # Only the two built-in servers are supported for now
