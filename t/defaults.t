@@ -3,8 +3,10 @@ use Mojo::Base -strict;
 use Test::More;
 use Mojolicious::Lite;
 use Test::Mojo;
+use IPC::ShareLite;
 
-plugin 'Prometheus';
+my $ipc = IPC::ShareLite->new(-key => time(), -create => 1, -destroy => 1);
+plugin 'Prometheus' => { shm_key => $ipc->key };
 
 get '/' => sub {
   my $c = shift;
