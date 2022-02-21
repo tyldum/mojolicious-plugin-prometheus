@@ -79,20 +79,6 @@ sub register {
     )
   );
 
-  # Collect stats
-  $app->hook(
-    after_render => sub {
-      my ($c) = @_;
-      $self->_guard->_change(
-        sub {
-          $_->{$$} = $app->prometheus->render;
-        }
-      );
-
-      #$self->_guard->_store({$$ => $app->prometheus->render});
-    }
-  );
-
   $app->hook(
     before_dispatch => sub {
       my ($c) = @_;
@@ -125,6 +111,8 @@ sub register {
   $self->route->to(
     cb => sub {
       my ($c) = @_;
+			# Collect stats and render
+      $self->_guard->_change(sub { $_->{$$} = $app->prometheus->render });
       $c->render(
         text => join("\n",
           map { ($self->_guard->_fetch->{$_}) }
@@ -156,7 +144,6 @@ sub _start {
     sub {
       my $pc = Net::Prometheus::ProcessCollector->new(labels => [worker => $$]);
       $self->prometheus->register($pc) if $pc;
-      $self->_guard->_store({$$ => $self->prometheus->render});
     }
   );
 
