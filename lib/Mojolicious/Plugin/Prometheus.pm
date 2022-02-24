@@ -9,19 +9,28 @@ our $VERSION = '1.3.1';
 has prometheus => sub { Net::Prometheus->new(disable_process_collector => 1) };
 has route => sub {undef};
 
+# Attributes to hold the different metrics that is registered
 has http_request_duration_seconds => sub { undef };
 has http_request_size_bytes => sub { undef };
 has http_response_size_bytes => sub { undef };
 has http_requests_total => sub { undef };
 
+# Default labels used for each metric type
 has http_request_duration_labels => sub { [qw/worker method/] };
 has http_request_size_labels     => sub { [qw/worker method/] };
 has http_response_size_labels    => sub { [qw/worker method code/] };
 has http_requests_total_labels   => sub { [qw/worker method code/] };
 
+# Default bucket sizes
 has request_buckets  => sub { [1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000] };
 has response_buckets => sub { [5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000] };
 has duration_buckets => sub { [.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10] };
+
+# Default callbacks that produce values for the metrics that are to be collected
+has http_request_size_cb     => sub { \&_http_request_size_cb };
+has http_request_duration_cb => sub { \&_http_request_duration_cb };
+has http_response_size_cb    => sub { \&_http_response_size_cb };
+has http_requests_total_cb   => sub { \&_http_requests_total_cb };
 
 sub register($self, $app, $config = {}) {
   $self->{key} = $config->{shm_key} || '12345';
@@ -83,22 +92,22 @@ sub register($self, $app, $config = {}) {
     before_dispatch => sub {
       my ($c) = @_;
       $c->stash('prometheus.start_time' => [gettimeofday]);
-      $self->http_request_size_bytes->observe($$, $c->req->method, $c->req->content->body_size);
+      $self->http_request_size_bytes->observe($self->http_request_size_cb->($c));
     }
   );
 
   $app->hook(
     after_render => sub {
       my ($c) = @_;
-      $self->http_request_duration_seconds->observe($$, $c->req->method, tv_interval($c->stash('prometheus.start_time')));
+      $self->http_request_duration_seconds->observe($self->http_request_duration_cb->($c));
     }
   );
 
   $app->hook(
     after_dispatch => sub {
       my ($c) = @_;
-      $self->http_requests_total->inc($$, $c->req->method, $c->res->code);
-      $self->http_response_size_bytes->observe($$, $c->req->method, $c->res->code, $c->res->content->body_size);
+      $self->http_requests_total->inc($self->http_requests_total_cb->($c));
+      $self->http_response_size_bytes->observe($self->http_response_size_cb->($c));
     }
   );
 
@@ -132,8 +141,6 @@ sub _guard {
 }
 
 sub _start {
-
-  #my ($self, $app, $config) = @_;
   my ($self, $server, $app, $config) = @_;
   return unless $server->isa('Mojo::Server::Daemon');
 
@@ -153,6 +160,10 @@ sub _start {
   ) if $server->isa('Mojo::Server::Prefork');
 }
 
+sub _http_request_size_cb($c) { $$, $c->req->method, $c->req->content->body_size }
+sub _http_request_duration_cb($c) { $$, $c->req->method, tv_interval($c->stash('prometheus.start_time')) }
+sub _http_response_size_cb ($c) { $$, $c->req->method, $c->res->code, $c->res->content->body_size }
+sub _http_requests_total_cb($c) { $$, $c->req->method, $c->res->code }
 
 package Mojolicious::Plugin::Mojolicious::_Guard;
 use Mojo::Base -base;
