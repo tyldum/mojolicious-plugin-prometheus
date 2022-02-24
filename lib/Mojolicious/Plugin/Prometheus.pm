@@ -111,7 +111,7 @@ sub register {
   $self->route->to(
     cb => sub {
       my ($c) = @_;
-			# Collect stats and render
+      # Collect stats and render
       $self->_guard->_change(sub { $_->{$$} = $app->prometheus->render });
       $c->render(
         text => join("\n",
