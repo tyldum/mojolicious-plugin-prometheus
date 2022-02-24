@@ -1,5 +1,5 @@
 package Mojolicious::Plugin::Prometheus;
-use Mojo::Base 'Mojolicious::Plugin';
+use Mojo::Base 'Mojolicious::Plugin', -signatures;
 use Time::HiRes qw/gettimeofday tv_interval/;
 use Net::Prometheus;
 use IPC::ShareLite;
@@ -8,24 +8,27 @@ our $VERSION = '1.3.1';
 
 has prometheus => sub { Net::Prometheus->new(disable_process_collector => 1) };
 has route => sub {undef};
-has http_request_duration_seconds => sub {
-  undef;
-};
-has http_request_size_bytes => sub {
-  undef;
-};
-has http_response_size_bytes => sub {
-  undef;
-};
-has http_requests_total => sub {
-  undef;
-};
 
+has http_request_duration_seconds => sub { undef };
+has http_request_size_bytes => sub { undef };
+has http_response_size_bytes => sub { undef };
+has http_requests_total => sub { undef };
 
-sub register {
-  my ($self, $app, $config) = @_;
+has http_request_duration_labels => sub { [qw/worker method/] };
+has http_request_size_labels     => sub { [qw/worker method/] };
+has http_response_size_labels    => sub { [qw/worker method code/] };
+has http_requests_total_labels   => sub { [qw/worker method code/] };
 
+has request_buckets  => sub { [1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000] };
+has response_buckets => sub { [5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000] };
+has duration_buckets => sub { [.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10] };
+
+sub register($self, $app, $config = {}) {
   $self->{key} = $config->{shm_key} || '12345';
+
+	$self->request_buckets($config->{request_buckets})   if $config->{request_buckets};
+	$self->response_buckets($config->{response_buckets}) if $config->{response_buckets};
+	$self->duration_buckets($config->{duration_buckets}) if $config->{duration_buckets};
 
 	$self->prometheus($config->{prometheus}) if $config->{prometheus};
   $app->helper(prometheus => sub { $self->prometheus });
@@ -39,8 +42,8 @@ sub register {
       subsystem => $config->{subsystem}        // undef,
       name      => "http_request_duration_seconds",
       help      => "Histogram with request processing time",
-      labels    => [qw/worker method/],
-      buckets   => $config->{duration_buckets} // undef,
+      labels    => $self->http_request_duration_labels,
+      buckets   => $self->duration_buckets,
     )
   );
 
@@ -50,9 +53,8 @@ sub register {
       subsystem => $config->{subsystem} // undef,
       name      => "http_request_size_bytes",
       help      => "Histogram containing request sizes",
-      labels    => [qw/worker method/],
-      buckets   => $config->{request_buckets}
-        // [(1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)],
+      labels    => $self->http_request_size_labels,
+      buckets   => $self->request_buckets,
     )
   );
 
@@ -62,9 +64,8 @@ sub register {
       subsystem => $config->{subsystem} // undef,
       name      => "http_response_size_bytes",
       help      => "Histogram containing response sizes",
-      labels    => [qw/worker method code/],
-      buckets   => $config->{response_buckets}
-        // [(5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)],
+      labels    => $self->http_response_size_labels,
+      buckets   => $self->response_buckets,
     )
   );
 
@@ -73,9 +74,8 @@ sub register {
       namespace => $config->{namespace} // undef,
       subsystem => $config->{subsystem} // undef,
       name      => "http_requests_total",
-      help =>
-        "How many HTTP requests processed, partitioned by status code and HTTP method.",
-      labels => [qw/worker method code/]
+      help      => "How many HTTP requests processed, partitioned by status code and HTTP method.",
+      labels    => $self->http_requests_total_labels,
     )
   );
 
@@ -83,16 +83,14 @@ sub register {
     before_dispatch => sub {
       my ($c) = @_;
       $c->stash('prometheus.start_time' => [gettimeofday]);
-      $self->http_request_size_bytes->observe($$, $c->req->method,
-        $c->req->content->body_size);
+      $self->http_request_size_bytes->observe($$, $c->req->method, $c->req->content->body_size);
     }
   );
 
   $app->hook(
     after_render => sub {
       my ($c) = @_;
-      $self->http_request_duration_seconds->observe($$, $c->req->method,
-        tv_interval($c->stash('prometheus.start_time')));
+      $self->http_request_duration_seconds->observe($$, $c->req->method, tv_interval($c->stash('prometheus.start_time')));
     }
   );
 
@@ -100,8 +98,7 @@ sub register {
     after_dispatch => sub {
       my ($c) = @_;
       $self->http_requests_total->inc($$, $c->req->method, $c->res->code);
-      $self->http_response_size_bytes->observe($$, $c->req->method,
-        $c->res->code, $c->res->content->body_size);
+      $self->http_response_size_bytes->observe($$, $c->req->method, $c->res->code, $c->res->content->body_size);
     }
   );
 
