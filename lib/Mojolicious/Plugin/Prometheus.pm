@@ -35,6 +35,16 @@ has http_requests_total_cb   => sub { \&_http_requests_total_cb };
 sub register($self, $app, $config = {}) {
   $self->{key} = $config->{shm_key} || '12345';
 
+	$self->http_request_duration_labels($config->{http_request_duration_labels}) if $config->{http_request_duration_labels};
+	$self->http_request_size_labels($config->{http_request_size_labels}) if $config->{http_request_size_labels};
+	$self->http_response_size_labels($config->{http_response_size_labels}) if $config->{http_response_size_labels};
+	$self->http_requests_total_labels($config->{http_requests_total_labels}) if $config->{http_requests_total_labels};
+
+	$self->http_request_size_cb($config->{http_request_size_cb}) if $config->{http_request_size_cb};
+	$self->http_request_duration_cb($config->{http_request_duration_cb}) if $config->{http_request_duration_cb};
+	$self->http_response_size_cb($config->{http_response_size_cb}) if $config->{http_response_size_cb};
+	$self->http_requests_total_cb($config->{http_requests_total_cb}) if $config->{http_requests_total_cb};
+
 	$self->request_buckets($config->{request_buckets})   if $config->{request_buckets};
 	$self->response_buckets($config->{response_buckets}) if $config->{response_buckets};
 	$self->duration_buckets($config->{duration_buckets}) if $config->{duration_buckets};
