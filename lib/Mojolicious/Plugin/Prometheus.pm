@@ -19,23 +19,23 @@ has http_requests_total => sub { undef };
 has config => sub {
 	{
 		http_request_duration_seconds => {
-			labels  => [qw/worker method/],
-			cb      => \&_http_request_duration_cb,
 			buckets => [.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10],
+			labels  => [qw/worker method/],
+			cb      => sub($c) { $$, $c->req->method, tv_interval($c->stash('prometheus.start_time')) },
 		},
 		http_request_size_bytes => {
-			labels  => [qw/worker method/],
-			cb      => \&_http_request_size_cb,
 			buckets => [1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+			labels  => [qw/worker method/],
+			cb      => sub($c) { $$, $c->req->method, $c->req->content->body_size },
 		},
 		http_response_size_bytes => {
-			labels  => [qw/worker method code/],
-			cb      => \&_http_response_size_cb,
 			buckets => [5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+			labels  => [qw/worker method code/],
+			cb      => sub($c) { $$, $c->req->method, $c->res->code, $c->res->content->body_size },
 		},
 		http_requests_total => {
 			labels  => [qw/worker method code/],
-			cb      => \&_http_requests_total_cb,,
+			cb      => sub($c) { $$, $c->req->method, $c->res->code },
 		},
 	}
 };
@@ -174,11 +174,6 @@ sub _start {
     }
   ) if $server->isa('Mojo::Server::Prefork');
 }
-
-sub _http_request_size_cb($c) { $$, $c->req->method, $c->req->content->body_size }
-sub _http_request_duration_cb($c) { $$, $c->req->method, tv_interval($c->stash('prometheus.start_time')) }
-sub _http_response_size_cb ($c) { $$, $c->req->method, $c->res->code, $c->res->content->body_size }
-sub _http_requests_total_cb($c) { $$, $c->req->method, $c->res->code }
 
 package Mojolicious::Plugin::Mojolicious::_Guard;
 use Mojo::Base -base;
