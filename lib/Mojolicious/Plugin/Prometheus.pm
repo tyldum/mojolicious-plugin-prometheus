@@ -15,40 +15,45 @@ has http_request_size_bytes => sub { undef };
 has http_response_size_bytes => sub { undef };
 has http_requests_total => sub { undef };
 
-# Default labels used for each metric type
-has http_request_duration_labels => sub { [qw/worker method/] };
-has http_request_size_labels     => sub { [qw/worker method/] };
-has http_response_size_labels    => sub { [qw/worker method code/] };
-has http_requests_total_labels   => sub { [qw/worker method code/] };
-
-# Default bucket sizes
-has request_buckets  => sub { [1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000] };
-has response_buckets => sub { [5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000] };
-has duration_buckets => sub { [.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10] };
-
-# Default callbacks that produce values for the metrics that are to be collected
-has http_request_size_cb     => sub { \&_http_request_size_cb };
-has http_request_duration_cb => sub { \&_http_request_duration_cb };
-has http_response_size_cb    => sub { \&_http_response_size_cb };
-has http_requests_total_cb   => sub { \&_http_requests_total_cb };
+# Configuration for the default metric types
+has config => sub {
+	{
+		http_request_duration_seconds => {
+			labels  => [qw/worker method/],
+			cb      => \&_http_request_duration_cb,
+			buckets => [.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10],
+		},
+		http_request_size_bytes => {
+			labels  => [qw/worker method/],
+			cb      => \&_http_request_size_cb,
+			buckets => [1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+		},
+		http_response_size_bytes => {
+			labels  => [qw/worker method code/],
+			cb      => \&_http_response_size_cb,
+			buckets => [5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+		},
+		http_requests_total => {
+			labels  => [qw/worker method code/],
+			cb      => \&_http_requests_total_cb,,
+		},
+	}
+};
 
 sub register($self, $app, $config = {}) {
   $self->{key} = $config->{shm_key} || '12345';
 
-	$self->http_request_duration_labels($config->{http_request_duration_labels}) if $config->{http_request_duration_labels};
-	$self->http_request_size_labels($config->{http_request_size_labels}) if $config->{http_request_size_labels};
-	$self->http_response_size_labels($config->{http_response_size_labels}) if $config->{http_response_size_labels};
-	$self->http_requests_total_labels($config->{http_requests_total_labels}) if $config->{http_requests_total_labels};
+	for(keys $self->config->%*) {
+		next unless $config->{$_};
+		$self->config->{$_} = { $self->config->{$_}->%*, $config->{$_}->%* };
+	}
 
-	$self->http_request_size_cb($config->{http_request_size_cb}) if $config->{http_request_size_cb};
-	$self->http_request_duration_cb($config->{http_request_duration_cb}) if $config->{http_request_duration_cb};
-	$self->http_response_size_cb($config->{http_response_size_cb}) if $config->{http_response_size_cb};
-	$self->http_requests_total_cb($config->{http_requests_total_cb}) if $config->{http_requests_total_cb};
+	# Present _only_ for a short while for backward compat
+	$self->config->{http_request_size_bytes}{buckets} = $config->{request_buckets} if $config->{request_buckets};
+	$self->config->{http_request_duration_seconds}{buckets} = $config->{duration_buckets} if $config->{duration_buckets};
+	$self->config->{http_response_size_bytes}{buckets} = $config->{response_buckets} if $config->{response_buckets};
 
-	$self->request_buckets($config->{request_buckets})   if $config->{request_buckets};
-	$self->response_buckets($config->{response_buckets}) if $config->{response_buckets};
-	$self->duration_buckets($config->{duration_buckets}) if $config->{duration_buckets};
-
+	# Net::Prometheus instance can be overridden in its entirety
 	$self->prometheus($config->{prometheus}) if $config->{prometheus};
   $app->helper(prometheus => sub { $self->prometheus });
 
@@ -61,8 +66,8 @@ sub register($self, $app, $config = {}) {
       subsystem => $config->{subsystem}        // undef,
       name      => "http_request_duration_seconds",
       help      => "Histogram with request processing time",
-      labels    => $self->http_request_duration_labels,
-      buckets   => $self->duration_buckets,
+      labels    => $self->config->{http_request_duration_seconds}{labels},
+      buckets   => $self->config->{http_request_duration_seconds}{buckets},
     )
   );
 
@@ -72,8 +77,8 @@ sub register($self, $app, $config = {}) {
       subsystem => $config->{subsystem} // undef,
       name      => "http_request_size_bytes",
       help      => "Histogram containing request sizes",
-      labels    => $self->http_request_size_labels,
-      buckets   => $self->request_buckets,
+      labels    => $self->config->{http_request_size_bytes}{labels},
+      buckets   => $self->config->{http_request_size_bytes}{buckets},
     )
   );
 
@@ -83,8 +88,8 @@ sub register($self, $app, $config = {}) {
       subsystem => $config->{subsystem} // undef,
       name      => "http_response_size_bytes",
       help      => "Histogram containing response sizes",
-      labels    => $self->http_response_size_labels,
-      buckets   => $self->response_buckets,
+      labels    => $self->config->{http_response_size_bytes}{labels},
+      buckets   => $self->config->{http_response_size_bytes}{buckets},
     )
   );
 
@@ -94,7 +99,7 @@ sub register($self, $app, $config = {}) {
       subsystem => $config->{subsystem} // undef,
       name      => "http_requests_total",
       help      => "How many HTTP requests processed, partitioned by status code and HTTP method.",
-      labels    => $self->http_requests_total_labels,
+      labels    => $self->config->{http_requests_total}{labels},
     )
   );
 
@@ -102,22 +107,22 @@ sub register($self, $app, $config = {}) {
     before_dispatch => sub {
       my ($c) = @_;
       $c->stash('prometheus.start_time' => [gettimeofday]);
-      $self->http_request_size_bytes->observe($self->http_request_size_cb->($c));
+      $self->http_request_size_bytes->observe($self->config->{http_request_size_bytes}{cb}->($c));
     }
   );
 
   $app->hook(
     after_render => sub {
       my ($c) = @_;
-      $self->http_request_duration_seconds->observe($self->http_request_duration_cb->($c));
+      $self->http_request_duration_seconds->observe($self->config->{http_request_duration_seconds}{cb}->($c));
     }
   );
 
   $app->hook(
     after_dispatch => sub {
       my ($c) = @_;
-      $self->http_requests_total->inc($self->http_requests_total_cb->($c));
-      $self->http_response_size_bytes->observe($self->http_response_size_cb->($c));
+      $self->http_requests_total->inc($self->config->{http_requests_total}{cb}->($c));
+      $self->http_response_size_bytes->observe($self->config->{http_response_size_bytes}{cb}->($c));
     }
   );
 

@@ -9,18 +9,22 @@ plugin Prometheus => {
 	shm_key => time(),
 
 	# Override to get the endpoint (route url) as a label
-	http_requests_total_labels => [qw/worker method endpoint code/],
-	http_requests_total_cb => sub {
-		my $c = shift;
-		return ($$, $c->req->method, $c->match->endpoint->to_string, $c->res->code);
+	http_requests_total => {
+		labels => [qw/worker method endpoint code/],
+		cb     => sub {
+			my $c = shift;
+			return ($$, $c->req->method, $c->match->endpoint->to_string, $c->res->code);
+		},
 	},
 
 	# Override to get information from the URL as a label.
 	# You wouldn't actually do this though. This is just an example.
-	http_request_duration_labels => [qw/worker method snailtype/],
-	http_request_duration_cb => sub {
-		my $c = shift;
-		return ($$, $c->req->method, $c->param('type') // 'unknown', tv_interval($c->stash('prometheus.start_time')));
+	http_request_duration_seconds => {
+		labels => [qw/worker method snailtype/],
+		cb     => sub {
+			my $c = shift;
+			return ($$, $c->req->method, $c->param('type') // 'unknown', tv_interval($c->stash('prometheus.start_time')));
+		},
 	},
 };
 get '/snails' => sub { shift->render(text => 'Hello Frenchie!') };
