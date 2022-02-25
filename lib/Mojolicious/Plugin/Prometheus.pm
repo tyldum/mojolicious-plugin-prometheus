@@ -43,18 +43,18 @@ has config => sub {
 sub register($self, $app, $config = {}) {
   $self->{key} = $config->{shm_key} || '12345';
 
-	for(keys $self->config->%*) {
-		next unless $config->{$_};
-		$self->config->{$_} = { $self->config->{$_}->%*, $config->{$_}->%* };
-	}
+  for(keys $self->config->%*) {
+    next unless $config->{$_};
+    $self->config->{$_} = { $self->config->{$_}->%*, $config->{$_}->%* };
+  }
 
-	# Present _only_ for a short while for backward compat
-	$self->config->{http_request_size_bytes}{buckets} = $config->{request_buckets} if $config->{request_buckets};
-	$self->config->{http_request_duration_seconds}{buckets} = $config->{duration_buckets} if $config->{duration_buckets};
-	$self->config->{http_response_size_bytes}{buckets} = $config->{response_buckets} if $config->{response_buckets};
+  # Present _only_ for a short while for backward compat
+  $self->config->{http_request_size_bytes}{buckets} = $config->{request_buckets} if $config->{request_buckets};
+  $self->config->{http_request_duration_seconds}{buckets} = $config->{duration_buckets} if $config->{duration_buckets};
+  $self->config->{http_response_size_bytes}{buckets} = $config->{response_buckets} if $config->{response_buckets};
 
-	# Net::Prometheus instance can be overridden in its entirety
-	$self->prometheus($config->{prometheus}) if $config->{prometheus};
+  # Net::Prometheus instance can be overridden in its entirety
+  $self->prometheus($config->{prometheus}) if $config->{prometheus};
   $app->helper(prometheus => sub { $self->prometheus });
 
   # Only the two built-in servers are supported for now
