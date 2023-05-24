@@ -9,7 +9,7 @@ our $VERSION = '1.4.0';
 has prometheus => sub { Net::Prometheus->new(disable_process_collector => 1) };
 has route => sub {undef};
 
-# Attributes to hold the different metrics that is registered
+# Attributes to hold the different metrics that are registered
 has http_request_duration_seconds => sub { undef };
 has http_request_size_bytes => sub { undef };
 has http_response_size_bytes => sub { undef };
