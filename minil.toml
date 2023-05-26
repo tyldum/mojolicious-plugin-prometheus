@@ -4,7 +4,7 @@ module_maker="ModuleBuildTiny"
 tag_format="v%v"
 authority="cpan:TYLDUM"
 license="artistic_2"
-badges = ['travis','metacpan','codecov']
+badges = ['github-actions/.github/workflows/linux.yml','metacpan']
 
 [FileGatherer]
 include_dotfiles = false
