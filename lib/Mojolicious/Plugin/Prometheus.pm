@@ -38,14 +38,14 @@ has config => sub {
       labels  => [qw/worker method code/],
       cb      => sub($c) { $$, $c->req->method, $c->res->code },
     },
-		perl_collector => {
-			enabled   => 1,
-			labels_cb => sub { { worker => $$ } },
-		},
-		process_collector => {
-			enabled   => 1,
-			labels_cb => sub { { worker => $$ } },
-		},
+    perl_collector => {
+      enabled   => 1,
+      labels_cb => sub { { worker => $$ } },
+    },
+    process_collector => {
+      enabled   => 1,
+      labels_cb => sub { { worker => $$ } },
+    },
   }
 };
 
