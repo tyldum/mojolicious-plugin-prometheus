@@ -11,9 +11,9 @@ has route => sub {undef};
 
 # Attributes to hold the different metrics that are registered
 has http_request_duration_seconds => sub { undef };
-has http_request_size_bytes => sub { undef };
-has http_response_size_bytes => sub { undef };
-has http_requests_total => sub { undef };
+has http_request_size_bytes       => sub { undef };
+has http_response_size_bytes      => sub { undef };
+has http_requests_total           => sub { undef };
 
 # Configuration for the default metric types
 has config => sub {
