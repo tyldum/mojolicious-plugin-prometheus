@@ -1,4 +1,6 @@
 use Mojo::Base -strict;
+use FindBin '$RealBin';
+use lib "$RealBin/lib";
 
 use Test::More;
 use Mojolicious::Lite;

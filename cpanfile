@@ -3,6 +3,7 @@ requires 'Net::Prometheus', '0.05';
 requires 'Time::HiRes';
 requires 'IPC::ShareLite';
 requires 'Sereal';
+requires 'perl', '5.20.0';
 
 on 'test' => sub {
     requires 'Test::More', '0.98';
@@ -11,5 +12,6 @@ on 'test' => sub {
 
 on 'develop' => sub {
     requires 'Minilla';
+    requires 'Version::Next';
     requires 'Software::License::Artistic_2_0';
 };

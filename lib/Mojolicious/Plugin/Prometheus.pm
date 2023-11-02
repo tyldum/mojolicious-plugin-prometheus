@@ -4,7 +4,7 @@ use Time::HiRes qw/gettimeofday tv_interval/;
 use Net::Prometheus;
 use IPC::ShareLite;
 
-our $VERSION = '1.4.0';
+our $VERSION = '1.4.1';
 
 has prometheus => sub { Net::Prometheus->new(disable_process_collector => 1) };
 has route => sub {undef};
@@ -328,7 +328,13 @@ this plugin will also expose
 
 =head1 AUTHOR
 
-Vidar Tyldum
+=over 2
+
+=item * Vidar Tyldum / L<TYLDUM|https://metacpan.org/author/TYLDUM> - Author
+
+=item * Christopher Rasch-Olsen Raa / L<CRORAA|https://metacpan.org/author/CRORAA> - Co-maintainer
+
+=back
 
 (the IPC::ShareLite parts of this code is shamelessly stolen from L<Mojolicious::Plugin::Status> written by Sebastian Riedel and mangled into something that works for me)
 
