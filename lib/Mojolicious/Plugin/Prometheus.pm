@@ -1,5 +1,5 @@
 package Mojolicious::Plugin::Prometheus;
-use Mojo::Base 'Mojolicious::Plugin';
+use Mojo::Base 'Mojolicious::Plugin', -signatures;
 use Time::HiRes qw/gettimeofday tv_interval/;
 use Net::Prometheus;
 use IPC::ShareLite;
@@ -8,25 +8,52 @@ our $VERSION = '1.4.1';
 
 has prometheus => sub { Net::Prometheus->new(disable_process_collector => 1) };
 has route => sub {undef};
-has http_request_duration_seconds => sub {
-  undef;
-};
-has http_request_size_bytes => sub {
-  undef;
-};
-has http_response_size_bytes => sub {
-  undef;
-};
-has http_requests_total => sub {
-  undef;
+
+# Attributes to hold the different metrics that are registered
+has http_request_duration_seconds => sub { undef };
+has http_request_size_bytes       => sub { undef };
+has http_response_size_bytes      => sub { undef };
+has http_requests_total           => sub { undef };
+
+# Configuration for the default metric types
+has config => sub {
+  {
+    http_request_duration_seconds => {
+      buckets => [.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10],
+      labels  => [qw/worker method/],
+      cb      => sub($c) { $$, $c->req->method, tv_interval($c->stash('prometheus.start_time')) },
+    },
+    http_request_size_bytes => {
+      buckets => [1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+      labels  => [qw/worker method/],
+      cb      => sub($c) { $$, $c->req->method, $c->req->content->body_size },
+    },
+    http_response_size_bytes => {
+      buckets => [5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+      labels  => [qw/worker method code/],
+      cb      => sub($c) { $$, $c->req->method, $c->res->code, $c->res->content->body_size },
+    },
+    http_requests_total => {
+      labels  => [qw/worker method code/],
+      cb      => sub($c) { $$, $c->req->method, $c->res->code },
+    },
+  }
 };
 
-
-sub register {
-  my ($self, $app, $config) = @_;
-
+sub register($self, $app, $config = {}) {
   $self->{key} = $config->{shm_key} || '12345';
 
+  for(keys $self->config->%*) {
+    next unless $config->{$_};
+    $self->config->{$_} = { $self->config->{$_}->%*, $config->{$_}->%* };
+  }
+
+  # Present _only_ for a short while for backward compat
+  $self->config->{http_request_duration_seconds}{buckets} = $config->{duration_buckets} if $config->{duration_buckets};
+  $self->config->{http_request_size_bytes}{buckets}       = $config->{request_buckets}  if $config->{request_buckets};
+  $self->config->{http_response_size_bytes}{buckets}      = $config->{response_buckets} if $config->{response_buckets};
+
+  # Net::Prometheus instance can be overridden in its entirety
   $self->prometheus($config->{prometheus}) if $config->{prometheus};
   $app->helper(prometheus => sub { $self->prometheus });
 
@@ -39,8 +66,8 @@ sub register {
       subsystem => $config->{subsystem}        // undef,
       name      => "http_request_duration_seconds",
       help      => "Histogram with request processing time",
-      labels    => [qw/worker method/],
-      buckets   => $config->{duration_buckets} // undef,
+      labels    => $self->config->{http_request_duration_seconds}{labels},
+      buckets   => $self->config->{http_request_duration_seconds}{buckets},
     )
   );
 
@@ -50,9 +77,8 @@ sub register {
       subsystem => $config->{subsystem} // undef,
       name      => "http_request_size_bytes",
       help      => "Histogram containing request sizes",
-      labels    => [qw/worker method/],
-      buckets   => $config->{request_buckets}
-        // [(1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)],
+      labels    => $self->config->{http_request_size_bytes}{labels},
+      buckets   => $self->config->{http_request_size_bytes}{buckets},
     )
   );
 
@@ -62,9 +88,8 @@ sub register {
       subsystem => $config->{subsystem} // undef,
       name      => "http_response_size_bytes",
       help      => "Histogram containing response sizes",
-      labels    => [qw/worker method code/],
-      buckets   => $config->{response_buckets}
-        // [(5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)],
+      labels    => $self->config->{http_response_size_bytes}{labels},
+      buckets   => $self->config->{http_response_size_bytes}{buckets},
     )
   );
 
@@ -73,9 +98,8 @@ sub register {
       namespace => $config->{namespace} // undef,
       subsystem => $config->{subsystem} // undef,
       name      => "http_requests_total",
-      help =>
-        "How many HTTP requests processed, partitioned by status code and HTTP method.",
-      labels => [qw/worker method code/]
+      help      => "How many HTTP requests processed, partitioned by status code and HTTP method.",
+      labels    => $self->config->{http_requests_total}{labels},
     )
   );
 
@@ -83,25 +107,22 @@ sub register {
     before_dispatch => sub {
       my ($c) = @_;
       $c->stash('prometheus.start_time' => [gettimeofday]);
-      $self->http_request_size_bytes->observe($$, $c->req->method,
-        $c->req->content->body_size);
+      $self->http_request_size_bytes->observe($self->config->{http_request_size_bytes}{cb}->($c));
     }
   );
 
   $app->hook(
     after_render => sub {
       my ($c) = @_;
-      $self->http_request_duration_seconds->observe($$, $c->req->method,
-        tv_interval($c->stash('prometheus.start_time')));
+      $self->http_request_duration_seconds->observe($self->config->{http_request_duration_seconds}{cb}->($c));
     }
   );
 
   $app->hook(
     after_dispatch => sub {
       my ($c) = @_;
-      $self->http_requests_total->inc($$, $c->req->method, $c->res->code);
-      $self->http_response_size_bytes->observe($$, $c->req->method,
-        $c->res->code, $c->res->content->body_size);
+      $self->http_requests_total->inc($self->config->{http_requests_total}{cb}->($c));
+      $self->http_response_size_bytes->observe($self->config->{http_response_size_bytes}{cb}->($c));
     }
   );
 
@@ -135,8 +156,6 @@ sub _guard {
 }
 
 sub _start {
-
-  #my ($self, $app, $config) = @_;
   my ($self, $server, $app, $config) = @_;
   return unless $server->isa('Mojo::Server::Daemon');
 
@@ -155,7 +174,6 @@ sub _start {
     }
   ) if $server->isa('Mojo::Server::Prefork');
 }
-
 
 package Mojolicious::Plugin::Mojolicious::_Guard;
 use Mojo::Base -base;
@@ -200,14 +218,25 @@ Mojolicious::Plugin::Prometheus - Mojolicious Plugin
 
 =head1 SYNOPSIS
 
-  # Mojolicious
+  # Mojolicious, no extra options
   $self->plugin('Prometheus');
 
-  # Mojolicious::Lite
+  # Mojolicious::Lite, no extra options
   plugin 'Prometheus';
 
-  # Mojolicious::Lite, with custom response buckets (seconds)
-  plugin 'Prometheus' => { response_buckets => [qw/4 5 6/] };
+  # Mojolicious::Lite, with custom response buckets and metrics pr endpoint
+  plugin 'Prometheus' => {
+    shm_key => $$,
+    http_requests_total => {
+      buckets => [qw/4 5 6/],
+      labels  => [qw/worker method endpoint code/],
+      cb      => sub {
+        my $c = shift;
+        my $endpoint = $c->match->endpoint ? $c->match->endpoint->to_string : undef;
+        return ($$, $c->req->method, $endpoint || $c->req->url, $c->res->code);
+      },
+    },
+  };
 
   # You can add your own route to do access control
   my $under = app->routes->under('/secret' =>sub {
@@ -267,27 +296,25 @@ Override the L<Net::Prometheus> object. The default is a new singleton instance 
 
 These will be prefixed to the metrics exported.
 
-=item * request_buckets
-
-Override buckets for request sizes histogram.
-
-Default: C<(1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)>
-
-=item * response_buckets
-
-Override buckets for response sizes histogram.
-
-Default: C<(5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)>
-
-=item * duration_buckets
-
-Override buckets for request duration histogram.
-
-Default: C<(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10)> (actually see L<Net::Prometheus|https://metacpan.org/source/PEVANS/Net-Prometheus-0.05/lib/Net/Prometheus/Histogram.pm#L19>)
-
 =item * shm_key
 
 Key used for shared memory access between workers, see L<$key in IPc::ShareLite|https://metacpan.org/pod/IPC::ShareLite> for details.
+
+=item * http_request_duration_seconds
+
+Structure that overrides the configuration for the C<http_request_duration_seconds> metric. See below.
+
+=item * http_request_size_bytes
+
+Structure that overrides the configuration for the C<http_request_size_bytes> metric. See below.
+
+=item * http_response_size_bytes
+
+Structure that overrides the configuration for the C<http_response_size_bytes> metric. See below.
+
+=item * http_requests_total
+
+Structure that overrides the configuration for the C<http_requests_total> metric. See below.
 
 =back
 
@@ -307,6 +334,33 @@ this plugin will also expose
 =item * C<http_response_size_bytes>, response size histogram partitioned over HTTP method
 
 =back
+
+Custom configuration of the built in metrics is possible. An example structure can be seen in the synopsis. The four built in metrics from this plugin all have more or less the same structure. Metrics provided by the Perl- and Process-collectors from L<Net::Prometheus|https://metacpan.org/pod/Net::Prometheus> can be changed by providing a custom C<prometheus> object.
+
+Default configuration for the built in metrics are as follows:
+
+  http_request_duration_seconds => {
+    buckets => [.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10],
+    labels  => [qw/worker method/],
+    cb      =>  sub($c) { $$, $c->req->method, tv_interval($c->stash('prometheus.start_time')) },
+  }
+  
+  http_request_size_bytes => {
+    buckets => [1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+    labels  => [qw/worker method/],
+    cb      => sub($c) { $$, $c->req->method, $c->req->content->body_size },
+  }
+  
+  http_response_size_bytes => {
+    buckets => [5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+    labels  => [qw/worker method code/],
+    cb      => sub($c) { $$, $c->req->method, $c->res->code, $c->res->content->body_size },
+  }
+  
+  http_requests_total => {
+    labels  => [qw/worker method code/],
+    cb      => sub($c) { $$, $c->req->method, $c->res->code },
+  }
 
 =head1 AUTHOR
 
