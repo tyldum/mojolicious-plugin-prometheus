@@ -49,9 +49,9 @@ sub register($self, $app, $config = {}) {
   }
 
   # Present _only_ for a short while for backward compat
-  $self->config->{http_request_size_bytes}{buckets} = $config->{request_buckets} if $config->{request_buckets};
   $self->config->{http_request_duration_seconds}{buckets} = $config->{duration_buckets} if $config->{duration_buckets};
-  $self->config->{http_response_size_bytes}{buckets} = $config->{response_buckets} if $config->{response_buckets};
+  $self->config->{http_request_size_bytes}{buckets}       = $config->{request_buckets}  if $config->{request_buckets};
+  $self->config->{http_response_size_bytes}{buckets}      = $config->{response_buckets} if $config->{response_buckets};
 
   # Net::Prometheus instance can be overridden in its entirety
   $self->prometheus($config->{prometheus}) if $config->{prometheus};
