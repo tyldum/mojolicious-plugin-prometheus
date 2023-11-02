@@ -170,7 +170,7 @@ sub _start {
 
   Mojo::IOLoop->next_tick(
     sub {
-			my $labels    = $self->config->{process_collector}{labels_cb}->();
+      my $labels    = $self->config->{process_collector}{labels_cb}->();
       my $collector = Net::Prometheus::ProcessCollector->new(labels => [%$labels]);
       $self->prometheus->register($collector);
     }
@@ -186,14 +186,14 @@ sub _start {
 }
 
 sub _prometheus($self) {
-	my $prometheus = Net::Prometheus->new(disable_process_collector => 1, disable_perl_collector => 1);
+  my $prometheus = Net::Prometheus->new(disable_process_collector => 1, disable_perl_collector => 1);
 
-	if($self->config->{perl_collector}{enabled}) {
-		my $perl_collector = Mojolicious::Plugin::Prometheus::Collector::Perl->new($self->config->{perl_collector});
-		$prometheus->register($perl_collector);
-	}
+  if($self->config->{perl_collector}{enabled}) {
+    my $perl_collector = Mojolicious::Plugin::Prometheus::Collector::Perl->new($self->config->{perl_collector});
+    $prometheus->register($perl_collector);
+  }
 
-	$prometheus;
+  $prometheus;
 };
 
 package Mojolicious::Plugin::Mojolicious::_Guard;
