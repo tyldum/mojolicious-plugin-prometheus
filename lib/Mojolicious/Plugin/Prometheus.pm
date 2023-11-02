@@ -318,7 +318,7 @@ These will be prefixed to the metrics exported.
 
 =item * shm_key
 
-Key used for shared memory access between workers, see L<$key in IPc::ShareLite|https://metacpan.org/pod/IPC::ShareLite> for details. Default is the process id read from C<$$>.
+Key used for shared memory access between workers, see L<$key in IPC::ShareLite|https://metacpan.org/pod/IPC::ShareLite> for details. Default is the process id read from C<$$>.
 
 =item * http_request_duration_seconds
 
