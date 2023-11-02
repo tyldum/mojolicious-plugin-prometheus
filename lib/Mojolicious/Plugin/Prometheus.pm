@@ -218,14 +218,25 @@ Mojolicious::Plugin::Prometheus - Mojolicious Plugin
 
 =head1 SYNOPSIS
 
-  # Mojolicious
+  # Mojolicious, no extra options
   $self->plugin('Prometheus');
 
-  # Mojolicious::Lite
+  # Mojolicious::Lite, no extra options
   plugin 'Prometheus';
 
-  # Mojolicious::Lite, with custom response buckets (seconds)
-  plugin 'Prometheus' => { response_buckets => [qw/4 5 6/] };
+  # Mojolicious::Lite, with custom response buckets and metrics pr endpoint
+  plugin 'Prometheus' => {
+    shm_key => $$,
+    http_requests_total => {
+      buckets => [qw/4 5 6/],
+      labels  => [qw/worker method endpoint code/],
+      cb      => sub {
+        my $c = shift;
+        my $endpoint = $c->match->endpoint ? $c->match->endpoint->to_string : undef;
+        return ($$, $c->req->method, $endpoint || $c->req->url, $c->res->code);
+      },
+    },
+  };
 
   # You can add your own route to do access control
   my $under = app->routes->under('/secret' =>sub {
@@ -285,27 +296,25 @@ Override the L<Net::Prometheus> object. The default is a new singleton instance 
 
 These will be prefixed to the metrics exported.
 
-=item * request_buckets
-
-Override buckets for request sizes histogram.
-
-Default: C<(1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)>
-
-=item * response_buckets
-
-Override buckets for response sizes histogram.
-
-Default: C<(5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000)>
-
-=item * duration_buckets
-
-Override buckets for request duration histogram.
-
-Default: C<(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10)> (actually see L<Net::Prometheus|https://metacpan.org/source/PEVANS/Net-Prometheus-0.05/lib/Net/Prometheus/Histogram.pm#L19>)
-
 =item * shm_key
 
 Key used for shared memory access between workers, see L<$key in IPc::ShareLite|https://metacpan.org/pod/IPC::ShareLite> for details.
+
+=item * http_request_duration_seconds
+
+Structure that overrides the configuration for the C<http_request_duration_seconds> metric. See below.
+
+=item * http_request_size_bytes
+
+Structure that overrides the configuration for the C<http_request_size_bytes> metric. See below.
+
+=item * http_response_size_bytes
+
+Structure that overrides the configuration for the C<http_response_size_bytes> metric. See below.
+
+=item * http_requests_total
+
+Structure that overrides the configuration for the C<http_requests_total> metric. See below.
 
 =back
 
@@ -325,6 +334,33 @@ this plugin will also expose
 =item * C<http_response_size_bytes>, response size histogram partitioned over HTTP method
 
 =back
+
+Custom configuration of the built in metrics is possible. An example structure can be seen in the synopsis. The four built in metrics from this plugin all have more or less the same structure. Metrics provided by the Perl- and Process-collectors from L<Net::Prometheus|https://metacpan.org/pod/Net::Prometheus> can be changed by providing a custom C<prometheus> object.
+
+Default configuration for the built in metrics are as follows:
+
+  http_request_duration_seconds => {
+    buckets => [.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10],
+    labels  => [qw/worker method/],
+    cb      =>  sub($c) { $$, $c->req->method, tv_interval($c->stash('prometheus.start_time')) },
+  }
+  
+  http_request_size_bytes => {
+    buckets => [1, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+    labels  => [qw/worker method/],
+    cb      => sub($c) { $$, $c->req->method, $c->req->content->body_size },
+  }
+  
+  http_response_size_bytes => {
+    buckets => [5, 50, 100, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000],
+    labels  => [qw/worker method code/],
+    cb      => sub($c) { $$, $c->req->method, $c->res->code, $c->res->content->body_size },
+  }
+  
+  http_requests_total => {
+    labels  => [qw/worker method code/],
+    cb      => sub($c) { $$, $c->req->method, $c->res->code },
+  }
 
 =head1 AUTHOR
 
