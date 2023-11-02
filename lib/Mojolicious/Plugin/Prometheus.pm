@@ -1,13 +1,14 @@
 package Mojolicious::Plugin::Prometheus;
 use Mojo::Base 'Mojolicious::Plugin', -signatures;
-use Time::HiRes qw/gettimeofday tv_interval/;
-use Net::Prometheus;
+use Mojolicious::Plugin::Prometheus::Collector::Perl;
 use IPC::ShareLite;
+use Net::Prometheus;
+use Time::HiRes qw/gettimeofday tv_interval/;
 
 our $VERSION = '1.4.1';
 
-has prometheus => sub { Net::Prometheus->new(disable_process_collector => 1) };
-has route => sub {undef};
+has prometheus => \&_prometheus;
+has route => sub { undef };
 
 # Attributes to hold the different metrics that are registered
 has http_request_duration_seconds => sub { undef };
@@ -37,11 +38,19 @@ has config => sub {
       labels  => [qw/worker method code/],
       cb      => sub($c) { $$, $c->req->method, $c->res->code },
     },
+    perl_collector => {
+      enabled   => 1,
+      labels_cb => sub { { worker => $$ } },
+    },
+    process_collector => {
+      enabled   => 1,
+      labels_cb => sub { { worker => $$ } },
+    },
   }
 };
 
 sub register($self, $app, $config = {}) {
-  $self->{key} = $config->{shm_key} || '12345';
+  $self->{key} = $config->{shm_key} || $$;
 
   for(keys $self->config->%*) {
     next unless $config->{$_};
@@ -161,10 +170,11 @@ sub _start {
 
   Mojo::IOLoop->next_tick(
     sub {
-      my $pc = Net::Prometheus::ProcessCollector->new(labels => [worker => $$]);
-      $self->prometheus->register($pc) if $pc;
+      my $labels    = $self->config->{process_collector}{labels_cb}->();
+      my $collector = Net::Prometheus::ProcessCollector->new(labels => [%$labels]);
+      $self->prometheus->register($collector);
     }
-  );
+  ) if $self->config->{process_collector}{enabled};
 
   # Remove stopped workers
   $server->on(
@@ -174,6 +184,17 @@ sub _start {
     }
   ) if $server->isa('Mojo::Server::Prefork');
 }
+
+sub _prometheus($self) {
+  my $prometheus = Net::Prometheus->new(disable_process_collector => 1, disable_perl_collector => 1);
+
+  if($self->config->{perl_collector}{enabled}) {
+    my $perl_collector = Mojolicious::Plugin::Prometheus::Collector::Perl->new($self->config->{perl_collector});
+    $prometheus->register($perl_collector);
+  }
+
+  $prometheus;
+};
 
 package Mojolicious::Plugin::Mojolicious::_Guard;
 use Mojo::Base -base;
@@ -226,7 +247,6 @@ Mojolicious::Plugin::Prometheus - Mojolicious Plugin
 
   # Mojolicious::Lite, with custom response buckets and metrics pr endpoint
   plugin 'Prometheus' => {
-    shm_key => $$,
     http_requests_total => {
       buckets => [qw/4 5 6/],
       labels  => [qw/worker method endpoint code/],
@@ -298,7 +318,7 @@ These will be prefixed to the metrics exported.
 
 =item * shm_key
 
-Key used for shared memory access between workers, see L<$key in IPc::ShareLite|https://metacpan.org/pod/IPC::ShareLite> for details.
+Key used for shared memory access between workers, see L<$key in IPC::ShareLite|https://metacpan.org/pod/IPC::ShareLite> for details. Default is the process id read from C<$$>.
 
 =item * http_request_duration_seconds
 
@@ -315,6 +335,48 @@ Structure that overrides the configuration for the C<http_response_size_bytes> m
 =item * http_requests_total
 
 Structure that overrides the configuration for the C<http_requests_total> metric. See below.
+
+=item perl_collector
+
+Structure that tells the plugin to enable or disable a Perl collector. Previously the Perl collector from L<Net::Prometheus> was used, but that is no longer in use due to it not being possible to add dynamic label values. Now L<Mojolicious::Plugin::Prometheus::Collector::Perl> is used. The configuration here need as follows:
+
+=over 4
+
+=item enabled
+
+Boolean-ish value indicating if this collector should be used.
+
+=item labels_cb
+
+A subref that the collector can call to dynamically resolve which labels and corresponding label values should be added to each metric. Default is:
+
+  {
+    enabled   => 1,
+    labels_cb => sub { { worker => $$ } },
+  }
+
+=back
+
+=item process_collector
+
+Structure that tells the plugin to enable or disable a process collector. The process collector from L<Net::Prometheus> is used for this. The configuration here need as follows:
+
+=over 4
+
+=item enabled
+
+Boolean-ish value indicating if this collector should be used.
+
+=item labels_cb
+
+A subref that the collector can call to dynamically resolve which labels and corresponding label values should be added to each metric. Default is:
+
+  {
+    enabled   => 1,
+    labels_cb => sub { { worker => $$ } },
+  }
+
+=back
 
 =back
 
@@ -335,7 +397,7 @@ this plugin will also expose
 
 =back
 
-Custom configuration of the built in metrics is possible. An example structure can be seen in the synopsis. The four built in metrics from this plugin all have more or less the same structure. Metrics provided by the Perl- and Process-collectors from L<Net::Prometheus|https://metacpan.org/pod/Net::Prometheus> can be changed by providing a custom C<prometheus> object.
+Custom configuration of the built in metrics is possible. An example structure can be seen in the synopsis. The four built in metrics from this plugin all have more or less the same structure. Metrics provided by the Perl- and Process-collectors from L<Net::Prometheus|https://metacpan.org/pod/Net::Prometheus> can be used and changed by providing a custom C<prometheus> object instead of using the defaults as detailed previously.
 
 Default configuration for the built in metrics are as follows:
 
