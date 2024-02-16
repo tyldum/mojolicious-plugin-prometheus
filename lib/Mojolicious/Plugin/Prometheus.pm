@@ -161,7 +161,7 @@ sub _guard {
     ||= IPC::ShareLite->new(-key => $self->{key}, -create => 1, -destroy => 0)
     || die $!;
 
-  return Mojolicious::Plugin::Mojolicious::_Guard->new(share => $share);
+  return Mojolicious::Plugin::Prometheus::Guard->new(share => $share);
 }
 
 sub _start {
@@ -196,37 +196,8 @@ sub _prometheus($self) {
   $prometheus;
 };
 
-package Mojolicious::Plugin::Mojolicious::_Guard;
-use Mojo::Base -base;
-
-use Fcntl ':flock';
-use Sereal qw(get_sereal_decoder get_sereal_encoder);
-
-my ($DECODER, $ENCODER) = (get_sereal_decoder, get_sereal_encoder);
-
-sub DESTROY { shift->{share}->unlock }
-
-sub new {
-  my $self = shift->SUPER::new(@_);
-  $self->{share}->lock(LOCK_EX);
-  return $self;
-}
-
-sub _change {
-  my ($self, $cb) = @_;
-  my $stats = $self->_fetch;
-  $cb->($_) for $stats;
-  $self->_store($stats);
-}
-
-sub _fetch {
-  return {} unless my $data = shift->{share}->fetch;
-  return $DECODER->decode($data);
-}
-
-sub _store { shift->{share}->store($ENCODER->encode(shift)) }
-
 1;
+
 __END__
 
 =for stopwords prometheus
