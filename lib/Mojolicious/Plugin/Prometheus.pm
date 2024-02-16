@@ -4,11 +4,17 @@ use Mojolicious::Plugin::Prometheus::Collector::Perl;
 use IPC::ShareLite;
 use Net::Prometheus;
 use Time::HiRes qw/gettimeofday tv_interval/;
+use Mojo::Collection;
+use Mojolicious::Plugin::Prometheus::Guard;
 
 our $VERSION = '1.4.1';
 
 has prometheus => \&_prometheus;
+has guard => \&_guard;
 has route => sub { undef };
+
+has worker_collectors => sub { [] };
+has global_collectors => sub { Mojo::Collection->new };
 
 # Attributes to hold the different metrics that are registered
 has http_request_duration_seconds => sub { undef };
@@ -64,7 +70,6 @@ sub register($self, $app, $config = {}) {
 
   # Net::Prometheus instance can be overridden in its entirety
   $self->prometheus($config->{prometheus}) if $config->{prometheus};
-  $app->helper(prometheus => sub { $self->prometheus });
 
   # Only the two built-in servers are supported for now
   $app->hook(before_server_start => sub { $self->_start(@_, $config) });
@@ -135,23 +140,37 @@ sub register($self, $app, $config = {}) {
     }
   );
 
+	# Create common helper methods
+  $app->helper('prometheus.instance' => sub { $self->prometheus });
+  $app->helper('prometheus.register' => sub { shift; $self->prometheus->register(@_) });
+	$app->helper('prometheus.collect'  => \&_collect);
+	$app->helper('prometheus.guard'    => sub { $self->guard });
+	$app->helper('prometheus.global_collectors' => sub { $self->global_collectors });
+	$app->helper('prometheus.worker_collectors' => sub { $self->worker_collectors });
 
+	# Create the endpoint that should serve metrics
   my $prefix = $config->{route} // $app->routes->under('/');
   $self->route($prefix->get($config->{path} // '/metrics'));
-  $self->route->to(
-    cb => sub {
-      my ($c) = @_;
-      # Collect stats and render
-      $self->_guard->_change(sub { $_->{$$} = $app->prometheus->render });
-      $c->render(
-        text => join("\n",
-          map { ($self->_guard->_fetch->{$_}) }
-          sort keys %{$self->_guard->_fetch}),
-        format => 'txt'
-      );
-    }
-  );
+  $self->route->to(cb => sub { _metrics($self, shift) });
+}
 
+sub _metrics($self, $c) {
+	$c->render(text => $c->prometheus->collect, format => 'txt');
+}
+
+sub _collect($c) {
+	# Update stats for current worker
+	$c->prometheus->guard->_change(sub { $_->{$$} = $c->prometheus->instance->render });
+
+	# Fetch stats for all worker-specific collectors
+	my $worker_stats = Mojo::Collection->new(keys %{$c->prometheus->guard->_fetch})
+		->sort
+		->map(sub { ($c->prometheus->guard->_fetch->{$_}) })
+		->join("\n");
+
+	# Fetch stats for global / on-demand collectors
+	my $global_stats = $c->prometheus->global_collectors->map(sub { $_->collect })->join("\n");
+	return $worker_stats."\n".$global_stats;
 }
 
 sub _guard {
@@ -180,7 +199,7 @@ sub _start {
   $server->on(
     reap => sub {
       my ($server, $pid) = @_;
-      $self->_guard->_change(sub { delete $_->{$pid} });
+      $self->guard->_change(sub { delete $_->{$pid} });
     }
   ) if $server->isa('Mojo::Server::Prefork');
 }

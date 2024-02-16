@@ -11,7 +11,7 @@ get '/' => sub {
   $c->render(text => 'Hello Mojo!');
 };
 
-my $counter = app->prometheus->new_counter(name => 'test_counter',
+my $counter = app->prometheus->instance->new_counter(name => 'test_counter',
   help => 'Test counter',);
 
 $counter->inc(5);
