@@ -141,10 +141,10 @@ sub register($self, $app, $config = {}) {
   );
 
 	# Create common helper methods
-  $app->helper('prometheus.instance' => sub { $self->prometheus });
-  $app->helper('prometheus.register' => sub { shift; $self->prometheus->register(@_) });
-	$app->helper('prometheus.collect'  => \&_collect);
 	$app->helper('prometheus.guard'    => sub { $self->guard });
+  $app->helper('prometheus.instance' => sub { $self->prometheus });
+  $app->helper('prometheus.register' => \&_register);
+	$app->helper('prometheus.collect'  => \&_collect);
 	$app->helper('prometheus.global_collectors' => sub { $self->global_collectors });
 	$app->helper('prometheus.worker_collectors' => sub { $self->worker_collectors });
 
@@ -156,6 +156,10 @@ sub register($self, $app, $config = {}) {
 
 sub _metrics($self, $c) {
 	$c->render(text => $c->prometheus->collect, format => 'txt');
+}
+
+sub _register($c, $collector) {
+	$c->prometheus->instance->register($collector);
 }
 
 sub _collect($c) {
@@ -191,7 +195,7 @@ sub _start {
     sub {
       my $labels    = $self->config->{process_collector}{labels_cb}->();
       my $collector = Net::Prometheus::ProcessCollector->new(labels => [%$labels]);
-      $self->prometheus->register($collector);
+      $app->prometheus->register($collector);
     }
   ) if $self->config->{process_collector}{enabled};
 
@@ -207,12 +211,12 @@ sub _start {
 sub _prometheus($self) {
   my $prometheus = Net::Prometheus->new(disable_process_collector => 1, disable_perl_collector => 1);
 
+	# Adding the Perl-collector, if enabled
   if($self->config->{perl_collector}{enabled}) {
     my $perl_collector = Mojolicious::Plugin::Prometheus::Collector::Perl->new($self->config->{perl_collector});
     $prometheus->register($perl_collector);
   }
-
-  $prometheus;
+	return $prometheus;
 };
 
 1;
