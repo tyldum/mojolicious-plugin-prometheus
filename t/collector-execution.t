@@ -19,14 +19,14 @@ my $t = Test::Mojo->new;
 $t->get_ok('/')->status_is(200) for 0..2;
 is $collector->called, 0, 'collector called zero times';
 
-$t->get_ok('/metrics')->status_is(200)->content_like(qr/custom 1/);
+$t->get_ok('/metrics')->status_is(200)->content_like(qr/custom\{pid="\d+"\} 1/);
 is $collector->called, 1, 'collector called once';
 
-my $global_collector = Prometheus::Collector::Custom->new(labels => { a => 123 });
+my $global_collector = Prometheus::Collector::Custom->new(labels_cb => sub { { a => 123 } });
 app->prometheus->register($global_collector, 'global');
 $t->get_ok('/metrics')
 	->status_is(200)
-	->content_like(qr/custom 2/)
+	->content_like(qr/custom\{pid="\d+"\} 2/)
 	->content_like(qr/custom\{a="123"\} 1/);
 
 done_testing();
