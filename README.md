@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/tyldum/mojolicious-plugin-prometheus.svg?branch=master)](https://travis-ci.org/tyldum/mojolicious-plugin-prometheus) [![MetaCPAN Release](https://badge.fury.io/pl/Mojolicious-Plugin-Prometheus.svg)](https://metacpan.org/release/Mojolicious-Plugin-Prometheus) [![Coverage Status](http://codecov.io/github/tyldum/mojolicious-plugin-prometheus/coverage.svg?branch=master)](https://codecov.io/github/tyldum/mojolicious-plugin-prometheus?branch=master)
+[![Actions Status](https://github.com/tyldum/mojolicious-plugin-prometheus/actions/workflows/.github/workflows/linux.yml/badge.svg)](https://github.com/tyldum/mojolicious-plugin-prometheus/actions) [![MetaCPAN Release](https://badge.fury.io/pl/Mojolicious-Plugin-Prometheus.svg)](https://metacpan.org/release/Mojolicious-Plugin-Prometheus)
 # NAME
 
 Mojolicious::Plugin::Prometheus - Mojolicious Plugin
