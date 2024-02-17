@@ -7,20 +7,22 @@ use Sereal qw(get_sereal_decoder get_sereal_encoder);
 has 'share';
 
 sub _change($self, $cb) {
-  $self->share->lock(LOCK_EX);
+	$self->share->lock(LOCK_EX);
 
-  my $stats = $self->_fetch;
-  $cb->($_) for $stats;
-  $self->_store($stats);
+	my $stats = $self->_fetch;
+	$cb->($_) for $stats;
+	$self->_store($stats);
 
-	$self->share->unlock
+	$self->share->unlock;
 }
 
 sub _fetch($self) {
-  return {} unless my $data = $self->share->fetch;
-  return get_sereal_decoder->decode($data);
+	return {} unless my $data = $self->share->fetch;
+	return get_sereal_decoder->decode($data);
 }
 
-sub _store { shift->{share}->store(get_sereal_encoder->encode(shift)) }
+sub _store($self, $value) {
+	$self->share->store(get_sereal_encoder->encode($value));
+}
 
 1;
