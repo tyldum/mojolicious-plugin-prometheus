@@ -150,10 +150,10 @@ sub register($self, $app, $config = {}) {
   # Create the endpoint that should serve metrics
   my $prefix = $config->{route} // $app->routes->under('/');
   $self->route($prefix->get($config->{path} // '/metrics'));
-  $self->route->to(cb => sub { _metrics($self, shift) });
+  $self->route->to(cb => \&_metrics);
 }
 
-sub _metrics($self, $c) {
+sub _metrics($c) {
   $c->render(text => $c->prometheus->collect, format => 'txt');
 }
 
