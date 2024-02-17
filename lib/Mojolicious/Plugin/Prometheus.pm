@@ -6,6 +6,7 @@ use Net::Prometheus;
 use Time::HiRes qw/gettimeofday tv_interval/;
 use Mojo::Collection;
 use Mojolicious::Plugin::Prometheus::Guard;
+use Prometheus::MetricRenderer;
 
 our $VERSION = '1.4.1';
 
@@ -158,8 +159,9 @@ sub _metrics($self, $c) {
 	$c->render(text => $c->prometheus->collect, format => 'txt');
 }
 
-sub _register($c, $collector) {
-	$c->prometheus->instance->register($collector);
+sub _register($c, $collector, $scope = 'worker') {
+	return $c->prometheus->instance->register($collector) if $scope eq 'worker';
+	return push $c->prometheus->global_collectors->@*, $collector;
 }
 
 sub _collect($c) {
@@ -173,8 +175,13 @@ sub _collect($c) {
 		->join("\n");
 
 	# Fetch stats for global / on-demand collectors
-	my $global_stats = $c->prometheus->global_collectors->map(sub { $_->collect })->join("\n");
-	return $worker_stats."\n".$global_stats;
+	my $renderer = Prometheus::MetricRenderer->new;
+	my $global_stats = $c->prometheus->global_collectors
+		->map(sub { [ $_->collect({}) ] })
+		->map(sub { $renderer->render($_) })
+		->join("\n");
+
+	return $worker_stats."\n".$global_stats."\n";
 }
 
 sub _guard {
