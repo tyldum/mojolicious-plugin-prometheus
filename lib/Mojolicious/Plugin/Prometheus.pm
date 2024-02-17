@@ -140,47 +140,47 @@ sub register($self, $app, $config = {}) {
     }
   );
 
-	# Create common helper methods
-	$app->helper('prometheus.guard'    => sub { $self->guard });
+  # Create common helper methods
+  $app->helper('prometheus.guard'    => sub { $self->guard });
   $app->helper('prometheus.instance' => sub { $self->prometheus });
   $app->helper('prometheus.register' => \&_register);
-	$app->helper('prometheus.collect'  => \&_collect);
-	$app->helper('prometheus.global_collectors' => sub { $self->global_collectors });
-	$app->helper('prometheus.worker_collectors' => sub { $self->worker_collectors });
+  $app->helper('prometheus.collect'  => \&_collect);
+  $app->helper('prometheus.global_collectors' => sub { $self->global_collectors });
+  $app->helper('prometheus.worker_collectors' => sub { $self->worker_collectors });
 
-	# Create the endpoint that should serve metrics
+  # Create the endpoint that should serve metrics
   my $prefix = $config->{route} // $app->routes->under('/');
   $self->route($prefix->get($config->{path} // '/metrics'));
   $self->route->to(cb => sub { _metrics($self, shift) });
 }
 
 sub _metrics($self, $c) {
-	$c->render(text => $c->prometheus->collect, format => 'txt');
+  $c->render(text => $c->prometheus->collect, format => 'txt');
 }
 
 sub _register($c, $collector, $scope = 'worker') {
-	return $c->prometheus->instance->register($collector) if $scope eq 'worker';
-	return push $c->prometheus->global_collectors->@*, $collector;
+  return $c->prometheus->instance->register($collector) if $scope eq 'worker';
+  return push $c->prometheus->global_collectors->@*, $collector;
 }
 
 sub _collect($c) {
-	# Update stats for current worker
-	$c->prometheus->guard->_change(sub { $_->{$$} = $c->prometheus->instance->render });
+  # Update stats for current worker
+  $c->prometheus->guard->_change(sub { $_->{$$} = $c->prometheus->instance->render });
 
-	# Fetch stats for all worker-specific collectors
-	my $worker_stats = Mojo::Collection->new(keys %{$c->prometheus->guard->_fetch})
-		->sort
-		->map(sub { ($c->prometheus->guard->_fetch->{$_}) })
-		->join("\n");
+  # Fetch stats for all worker-specific collectors
+  my $worker_stats = Mojo::Collection->new(keys %{$c->prometheus->guard->_fetch})
+    ->sort
+    ->map(sub { ($c->prometheus->guard->_fetch->{$_}) })
+    ->join("\n");
 
-	# Fetch stats for global / on-demand collectors
-	my $renderer = Prometheus::MetricRenderer->new;
-	my $global_stats = $c->prometheus->global_collectors
-		->map(sub { [ $_->collect({}) ] })
-		->map(sub { $renderer->render($_) })
-		->join("\n");
+  # Fetch stats for global / on-demand collectors
+  my $renderer = Prometheus::MetricRenderer->new;
+  my $global_stats = $c->prometheus->global_collectors
+    ->map(sub { [ $_->collect({}) ] })
+    ->map(sub { $renderer->render($_) })
+    ->join("\n");
 
-	return $worker_stats."\n".$global_stats."\n";
+  return $worker_stats."\n".$global_stats."\n";
 }
 
 sub _guard {
@@ -217,12 +217,12 @@ sub _start {
 sub _prometheus($self) {
   my $prometheus = Net::Prometheus->new(disable_process_collector => 1, disable_perl_collector => 1);
 
-	# Adding the Perl-collector, if enabled
+  # Adding the Perl-collector, if enabled
   if($self->config->{perl_collector}{enabled}) {
     my $perl_collector = Mojolicious::Plugin::Prometheus::Collector::Perl->new($self->config->{perl_collector});
     $prometheus->register($perl_collector);
   }
-	return $prometheus;
+  return $prometheus;
 };
 
 1;
