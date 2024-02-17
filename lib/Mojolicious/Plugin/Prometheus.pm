@@ -11,8 +11,10 @@ use Prometheus::MetricRenderer;
 our $VERSION = '1.4.1';
 
 has prometheus => \&_prometheus;
-has guard => \&_guard;
-has route => sub { undef };
+has guard   => \&_guard;
+has share   => \&_share;
+has route   => sub { undef };
+has shm_key => sub { $$ };
 
 has global_collectors => sub { Mojo::Collection->new };
 
@@ -56,7 +58,7 @@ has config => sub {
 };
 
 sub register($self, $app, $config = {}) {
-  $self->{key} = $config->{shm_key} || $$;
+  $self->shm_key($config->{shm_key}) if $config->{shm_key};
 
   for(keys $self->config->%*) {
     next unless $config->{$_};
@@ -182,14 +184,12 @@ sub _collect($c) {
   return $worker_stats."\n".$global_stats."\n";
 }
 
-sub _guard {
-  my $self = shift;
+sub _share($self) {
+  IPC::ShareLite->new(-key => $self->shm_key, -create => 1, -destroy => 0) || die $!;
+}
 
-  my $share = $self->{share}
-    ||= IPC::ShareLite->new(-key => $self->{key}, -create => 1, -destroy => 0)
-    || die $!;
-
-  return Mojolicious::Plugin::Prometheus::Guard->new(share => $share);
+sub _guard($self) {
+  Mojolicious::Plugin::Prometheus::Guard->new(share => $self->share);
 }
 
 sub _start {
