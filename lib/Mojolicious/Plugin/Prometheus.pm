@@ -146,7 +146,6 @@ sub register($self, $app, $config = {}) {
   $app->helper('prometheus.register' => \&_register);
   $app->helper('prometheus.collect'  => \&_collect);
   $app->helper('prometheus.global_collectors' => sub { $self->global_collectors });
-  $app->helper('prometheus.worker_collectors' => sub { $self->worker_collectors });
 
   # Create the endpoint that should serve metrics
   my $prefix = $config->{route} // $app->routes->under('/');
