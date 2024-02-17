@@ -14,7 +14,6 @@ has prometheus => \&_prometheus;
 has guard => \&_guard;
 has route => sub { undef };
 
-has worker_collectors => sub { [] };
 has global_collectors => sub { Mojo::Collection->new };
 
 # Attributes to hold the different metrics that are registered
