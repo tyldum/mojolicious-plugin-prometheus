@@ -15,8 +15,8 @@ sub render($self, $metrics) {
 				"# TYPE $name " . $sampleset->type,
 				map { _format_sample($_) } $sampleset->samples->@*
 			)
-	})
-	->join("\n");
+		})
+		->join("\n");
 }
 
 sub _format_help($sampleset) {
