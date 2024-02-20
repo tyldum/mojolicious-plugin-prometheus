@@ -143,10 +143,12 @@ sub register($self, $app, $config = {}) {
   );
 
   # Create common helper methods
-  $app->helper('prometheus.guard'    => sub { $self->guard });
   $app->helper('prometheus.instance' => sub { $self->prometheus });
   $app->helper('prometheus.register' => \&_register);
-  $app->helper('prometheus.collect'  => \&_collect);
+
+	# Plugin-internal helper methods
+  $app->helper('prometheus.collect' => \&_collect);
+  $app->helper('prometheus.guard'   => sub { $self->guard });
   $app->helper('prometheus.global_collectors' => sub { $self->global_collectors });
 
   # Create the endpoint that should serve metrics
