@@ -2,6 +2,14 @@ Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
 {{$NEXT}}
 
+1.5.1 2024-02-20T17:58:00Z
+    - Added support for dynamic / custom labels for built in metrics
+    - Expanded documentation contents
+    - Bumped required Perl-version to 5.20.0
+    - Added a new Perl-collector that allows for overriding labels
+    - Adding 'worker' (process id) as default label to all metrics
+		- Separation of worker and global collectors
+
 1.4.1 2023-05-25T16:18:10Z
     - Added a missing dependency for cutting releases
     - Adding path to @INC for one test file (thanks @leont)

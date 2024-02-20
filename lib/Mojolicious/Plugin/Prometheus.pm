@@ -8,7 +8,7 @@ use Mojo::Collection;
 use Mojolicious::Plugin::Prometheus::Guard;
 use Prometheus::MetricRenderer;
 
-our $VERSION = '1.4.1';
+our $VERSION = '1.5.1';
 
 has prometheus => \&_prometheus;
 has guard   => \&_guard;
