@@ -341,7 +341,7 @@ Structure that overrides the configuration for the C<http_response_size_bytes> m
 
 Structure that overrides the configuration for the C<http_requests_total> metric. See below.
 
-=item perl_collector
+=item * perl_collector
 
 Structure that tells the plugin to enable or disable a Perl collector. Previously the Perl collector from L<Net::Prometheus> was used, but that is no longer in use due to it not being possible to add dynamic label values. Now L<Mojolicious::Plugin::Prometheus::Collector::Perl> is used. The configuration here need as follows:
 
@@ -362,7 +362,7 @@ A subref that the collector can call to dynamically resolve which labels and cor
 
 =back
 
-=item process_collector
+=item * process_collector
 
 Structure that tells the plugin to enable or disable a process collector. The process collector from L<Net::Prometheus> is used for this. The configuration here need as follows:
 
