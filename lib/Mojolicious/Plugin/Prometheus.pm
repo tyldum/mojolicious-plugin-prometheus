@@ -277,21 +277,25 @@ Hooks are also installed to measure requests response time and count requests ba
 
 =head1 HELPERS
 
-=head2 prometheus
+=head2 prometheus.instance
 
-Create further instrumentation into your application by using this helper which gives access to the L<Net::Prometheus> object.
-See L<Net::Prometheus> for usage.
+Create further instrumentation into your application by using this helper which gives access to the L<Net::Prometheus> object. Please note that this represents a change from versions up to and including 1.4.x where C<prometheus> was the method that returned the Prometheus instance.
+
+See L<Net::Prometheus> for further usage information.
+
+=head2 prometheus.register($collector, $scope)
+
+Register new / custom collectors. This method lets you differentiate those collectors that collect worker-specific metrics and those that collect more generic / global metrics. The difference between these two categories of collectors is that the results of calling C<collect> on worker-specific collectors is cached to shared memory using C<IPC::ShareLite> so that one worker can return collected results for all workers. Results of calling C<collect> on generic / global collectors are not cached. This separation ensures that collectors that are global is not duplicated in the output, ie. does not appear once for each worker.
 
 =head1 METHODS
 
-L<Mojolicious::Plugin::Prometheus> inherits all methods from
-L<Mojolicious::Plugin> and implements the following new ones.
+L<Mojolicious::Plugin::Prometheus> inherits all methods from L<Mojolicious::Plugin> and implements the following new ones.
 
 =head2 register
 
   $plugin->register($app, \%config);
 
-Register plugin in L<Mojolicious> application.
+Register plugin in L<Mojolicious> application. You may pass a hashref containing configuration overrides to C<register> this will be merged with the default configuration values.
 
 C<%config> can have:
 
