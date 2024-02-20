@@ -4,11 +4,19 @@ use Mojolicious::Plugin::Prometheus::Collector::Perl;
 use IPC::ShareLite;
 use Net::Prometheus;
 use Time::HiRes qw/gettimeofday tv_interval/;
+use Mojo::Collection;
+use Mojolicious::Plugin::Prometheus::Guard;
+use Prometheus::MetricRenderer;
 
-our $VERSION = '1.4.1';
+our $VERSION = '1.5.1';
 
 has prometheus => \&_prometheus;
-has route => sub { undef };
+has guard   => \&_guard;
+has share   => \&_share;
+has route   => sub { undef };
+has shm_key => sub { $$ };
+
+has global_collectors => sub { Mojo::Collection->new };
 
 # Attributes to hold the different metrics that are registered
 has http_request_duration_seconds => sub { undef };
@@ -50,7 +58,7 @@ has config => sub {
 };
 
 sub register($self, $app, $config = {}) {
-  $self->{key} = $config->{shm_key} || $$;
+  $self->shm_key($config->{shm_key}) if $config->{shm_key};
 
   for(keys $self->config->%*) {
     next unless $config->{$_};
@@ -64,7 +72,6 @@ sub register($self, $app, $config = {}) {
 
   # Net::Prometheus instance can be overridden in its entirety
   $self->prometheus($config->{prometheus}) if $config->{prometheus};
-  $app->helper(prometheus => sub { $self->prometheus });
 
   # Only the two built-in servers are supported for now
   $app->hook(before_server_start => sub { $self->_start(@_, $config) });
@@ -135,33 +142,56 @@ sub register($self, $app, $config = {}) {
     }
   );
 
+  # Create common helper methods
+  $app->helper('prometheus.instance' => sub { $self->prometheus });
+  $app->helper('prometheus.register' => \&_register);
 
+	# Plugin-internal helper methods
+  $app->helper('prometheus.collect' => \&_collect);
+  $app->helper('prometheus.guard'   => sub { $self->guard });
+  $app->helper('prometheus.global_collectors' => sub { $self->global_collectors });
+
+  # Create the endpoint that should serve metrics
   my $prefix = $config->{route} // $app->routes->under('/');
   $self->route($prefix->get($config->{path} // '/metrics'));
-  $self->route->to(
-    cb => sub {
-      my ($c) = @_;
-      # Collect stats and render
-      $self->_guard->_change(sub { $_->{$$} = $app->prometheus->render });
-      $c->render(
-        text => join("\n",
-          map { ($self->_guard->_fetch->{$_}) }
-          sort keys %{$self->_guard->_fetch}),
-        format => 'txt'
-      );
-    }
-  );
-
+  $self->route->to(cb => \&_metrics);
 }
 
-sub _guard {
-  my $self = shift;
+sub _metrics($c) {
+  $c->render(text => $c->prometheus->collect, format => 'txt');
+}
 
-  my $share = $self->{share}
-    ||= IPC::ShareLite->new(-key => $self->{key}, -create => 1, -destroy => 0)
-    || die $!;
+sub _register($c, $collector, $scope = 'worker') {
+  return $c->prometheus->instance->register($collector) if $scope eq 'worker';
+  return push $c->prometheus->global_collectors->@*, $collector;
+}
 
-  return Mojolicious::Plugin::Mojolicious::_Guard->new(share => $share);
+sub _collect($c) {
+  # Update stats for current worker
+  $c->prometheus->guard->_change(sub { $_->{$$} = $c->prometheus->instance->render });
+
+  # Fetch stats for all worker-specific collectors
+  my $worker_stats = Mojo::Collection->new(keys %{$c->prometheus->guard->_fetch})
+    ->sort
+    ->map(sub { ($c->prometheus->guard->_fetch->{$_}) })
+    ->join("\n");
+
+  # Fetch stats for global / on-demand collectors
+  my $renderer = Prometheus::MetricRenderer->new;
+  my $global_stats = $c->prometheus->global_collectors
+    ->map(sub { [ $_->collect({}) ] })
+    ->map(sub { $renderer->render($_) })
+    ->join("\n");
+
+  return $worker_stats."\n".$global_stats."\n";
+}
+
+sub _share($self) {
+  IPC::ShareLite->new(-key => $self->shm_key, -create => 1, -destroy => 0) || die $!;
+}
+
+sub _guard($self) {
+  Mojolicious::Plugin::Prometheus::Guard->new(share => $self->share);
 }
 
 sub _start {
@@ -172,7 +202,7 @@ sub _start {
     sub {
       my $labels    = $self->config->{process_collector}{labels_cb}->();
       my $collector = Net::Prometheus::ProcessCollector->new(labels => [%$labels]);
-      $self->prometheus->register($collector);
+      $app->prometheus->register($collector);
     }
   ) if $self->config->{process_collector}{enabled};
 
@@ -180,7 +210,7 @@ sub _start {
   $server->on(
     reap => sub {
       my ($server, $pid) = @_;
-      $self->_guard->_change(sub { delete $_->{$pid} });
+      $self->guard->_change(sub { delete $_->{$pid} });
     }
   ) if $server->isa('Mojo::Server::Prefork');
 }
@@ -188,45 +218,16 @@ sub _start {
 sub _prometheus($self) {
   my $prometheus = Net::Prometheus->new(disable_process_collector => 1, disable_perl_collector => 1);
 
+  # Adding the Perl-collector, if enabled
   if($self->config->{perl_collector}{enabled}) {
     my $perl_collector = Mojolicious::Plugin::Prometheus::Collector::Perl->new($self->config->{perl_collector});
     $prometheus->register($perl_collector);
   }
-
-  $prometheus;
+  return $prometheus;
 };
 
-package Mojolicious::Plugin::Mojolicious::_Guard;
-use Mojo::Base -base;
-
-use Fcntl ':flock';
-use Sereal qw(get_sereal_decoder get_sereal_encoder);
-
-my ($DECODER, $ENCODER) = (get_sereal_decoder, get_sereal_encoder);
-
-sub DESTROY { shift->{share}->unlock }
-
-sub new {
-  my $self = shift->SUPER::new(@_);
-  $self->{share}->lock(LOCK_EX);
-  return $self;
-}
-
-sub _change {
-  my ($self, $cb) = @_;
-  my $stats = $self->_fetch;
-  $cb->($_) for $stats;
-  $self->_store($stats);
-}
-
-sub _fetch {
-  return {} unless my $data = shift->{share}->fetch;
-  return $DECODER->decode($data);
-}
-
-sub _store { shift->{share}->store($ENCODER->encode(shift)) }
-
 1;
+
 __END__
 
 =for stopwords prometheus
@@ -276,21 +277,25 @@ Hooks are also installed to measure requests response time and count requests ba
 
 =head1 HELPERS
 
-=head2 prometheus
+=head2 prometheus.instance
 
-Create further instrumentation into your application by using this helper which gives access to the L<Net::Prometheus> object.
-See L<Net::Prometheus> for usage.
+Create further instrumentation into your application by using this helper which gives access to the L<Net::Prometheus> object. Please note that this represents a change from versions up to and including 1.4.x where C<prometheus> was the method that returned the Prometheus instance.
+
+See L<Net::Prometheus> for further usage information.
+
+=head2 prometheus.register($collector, $scope)
+
+Register new / custom collectors. This method lets you differentiate those collectors that collect worker-specific metrics and those that collect more generic / global metrics. The difference between these two categories of collectors is that the results of calling C<collect> on worker-specific collectors is cached to shared memory using C<IPC::ShareLite> so that one worker can return collected results for all workers. Results of calling C<collect> on generic / global collectors are not cached. This separation ensures that collectors that are global is not duplicated in the output, ie. does not appear once for each worker.
 
 =head1 METHODS
 
-L<Mojolicious::Plugin::Prometheus> inherits all methods from
-L<Mojolicious::Plugin> and implements the following new ones.
+L<Mojolicious::Plugin::Prometheus> inherits all methods from L<Mojolicious::Plugin> and implements the following new ones.
 
 =head2 register
 
   $plugin->register($app, \%config);
 
-Register plugin in L<Mojolicious> application.
+Register plugin in L<Mojolicious> application. You may pass a hashref containing configuration overrides to C<register> this will be merged with the default configuration values.
 
 C<%config> can have:
 
@@ -336,7 +341,7 @@ Structure that overrides the configuration for the C<http_response_size_bytes> m
 
 Structure that overrides the configuration for the C<http_requests_total> metric. See below.
 
-=item perl_collector
+=item * perl_collector
 
 Structure that tells the plugin to enable or disable a Perl collector. Previously the Perl collector from L<Net::Prometheus> was used, but that is no longer in use due to it not being possible to add dynamic label values. Now L<Mojolicious::Plugin::Prometheus::Collector::Perl> is used. The configuration here need as follows:
 
@@ -357,7 +362,7 @@ A subref that the collector can call to dynamically resolve which labels and cor
 
 =back
 
-=item process_collector
+=item * process_collector
 
 Structure that tells the plugin to enable or disable a process collector. The process collector from L<Net::Prometheus> is used for this. The configuration here need as follows:
 

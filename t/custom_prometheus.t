@@ -13,7 +13,7 @@ $prometheus->new_counter(
 );
 plugin Prometheus => { prometheus => $prometheus };
 
-my $has_dummy = grep { /^dummy$/ } map { $_->fullname } app->prometheus->{registry}->collectors;
+my $has_dummy = grep { /^dummy$/ } map { $_->fullname } app->prometheus->instance->{registry}->collectors;
 ok $has_dummy, 'custom prometheus instance used';
 
 done_testing();
