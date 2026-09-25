@@ -62,6 +62,25 @@ sub register($self, $app, $config = {}) {
   $self->config->{http_request_size_bytes}{buckets}       = $config->{request_buckets}  if $config->{request_buckets};
   $self->config->{http_response_size_bytes}{buckets}      = $config->{response_buckets} if $config->{response_buckets};
 
+  # Optionally add an "action" label with the matched route (or the request
+  # path if no route matches) to the built in http metrics. The label is
+  # prepended so that the observed value, which Net::Prometheus expects to be
+  # the last element of the values returned by the cb, stays last.
+  if($config->{action}) {
+    for my $metric (
+      qw/http_request_duration_seconds
+         http_request_size_bytes
+         http_response_size_bytes
+         http_requests_total/
+    ) {
+      my $labels = $self->config->{$metric}{labels};
+      next if grep { $_ eq 'action' } @$labels;
+      unshift @$labels, 'action';
+      my $cb = $self->config->{$metric}{cb};
+      $self->config->{$metric}{cb} = sub($c) { $self->_action($c), $cb->($c) };
+    }
+  }
+
   # Net::Prometheus instance can be overridden in its entirety
   $self->prometheus($config->{prometheus}) if $config->{prometheus};
   $app->helper(prometheus => sub { $self->prometheus });
@@ -116,7 +135,6 @@ sub register($self, $app, $config = {}) {
     before_dispatch => sub {
       my ($c) = @_;
       $c->stash('prometheus.start_time' => [gettimeofday]);
-      $self->http_request_size_bytes->observe($self->config->{http_request_size_bytes}{cb}->($c));
     }
   );
 
@@ -127,9 +145,12 @@ sub register($self, $app, $config = {}) {
     }
   );
 
+  # The http metrics are observed after the dispatch so the matched route, used
+  # to resolve the "action" label if enabled, is known by then
   $app->hook(
     after_dispatch => sub {
       my ($c) = @_;
+      $self->http_request_size_bytes->observe($self->config->{http_request_size_bytes}{cb}->($c));
       $self->http_requests_total->inc($self->config->{http_requests_total}{cb}->($c));
       $self->http_response_size_bytes->observe($self->config->{http_response_size_bytes}{cb}->($c));
     }
@@ -184,6 +205,14 @@ sub _start {
     }
   ) if $server->isa('Mojo::Server::Prefork');
 }
+
+sub _action($self, $c) {
+  my $endpoint = $c->match->endpoint;
+  my $action = $endpoint
+    ? $endpoint->to_string
+    : $c->req->url->path->to_string;
+  return $action || '/';
+};
 
 sub _prometheus($self) {
   my $prometheus = Net::Prometheus->new(disable_process_collector => 1, disable_perl_collector => 1);
@@ -245,18 +274,22 @@ Mojolicious::Plugin::Prometheus - Mojolicious Plugin
   # Mojolicious::Lite, no extra options
   plugin 'Prometheus';
 
-  # Mojolicious::Lite, with custom response buckets and metrics pr endpoint
-  plugin 'Prometheus' => {
-    http_requests_total => {
-      buckets => [qw/4 5 6/],
-      labels  => [qw/worker method endpoint code/],
-      cb      => sub {
-        my $c = shift;
-        my $endpoint = $c->match->endpoint ? $c->match->endpoint->to_string : undef;
-        return ($$, $c->req->method, $endpoint || $c->req->url, $c->res->code);
-      },
-    },
-  };
+   # Mojolicious::Lite, with custom response buckets and metrics pr endpoint
+   plugin 'Prometheus' => {
+     http_requests_total => {
+       buckets => [qw/4 5 6/],
+       labels  => [qw/worker method endpoint code/],
+       cb      => sub {
+         my $c = shift;
+         my $endpoint = $c->match->endpoint ? $c->match->endpoint->to_string : undef;
+         return ($$, $c->req->method, $endpoint || $c->req->url, $c->res->code);
+       },
+     },
+   };
+
+   # Mojolicious::Lite, add the matched route (or the request path when no
+   # route matches) as an "action" label to the built in http metrics
+   plugin 'Prometheus' => { action => 1 };
 
   # You can add your own route to do access control
   my $under = app->routes->under('/secret' =>sub {
@@ -336,6 +369,12 @@ Structure that overrides the configuration for the C<http_response_size_bytes> m
 
 Structure that overrides the configuration for the C<http_requests_total> metric. See below.
 
+=item * action
+
+Boolean-ish value which, when enabled, adds an C<action> label to all built in http metrics (C<http_request_duration_seconds>, C<http_request_size_bytes>, C<http_response_size_bytes> and C<http_requests_total>). The label value is the matched route pattern, like e.g. C</snails/:type>, or the request path, e.g. C</cats>, if no route matches. This makes it possible to break down the http metrics on specific routes / urls in addition to the http method.
+
+Default: off
+
 =item perl_collector
 
 Structure that tells the plugin to enable or disable a Perl collector. Previously the Perl collector from L<Net::Prometheus> was used, but that is no longer in use due to it not being possible to add dynamic label values. Now L<Mojolicious::Plugin::Prometheus::Collector::Perl> is used. The configuration here need as follows:
@@ -398,6 +437,8 @@ this plugin will also expose
 =back
 
 Custom configuration of the built in metrics is possible. An example structure can be seen in the synopsis. The four built in metrics from this plugin all have more or less the same structure. Metrics provided by the Perl- and Process-collectors from L<Net::Prometheus|https://metacpan.org/pod/Net::Prometheus> can be used and changed by providing a custom C<prometheus> object instead of using the defaults as detailed previously.
+
+Enabling the C<action> configuration option adds an C<action> label to all built in http metrics, with the value being the matched route pattern or the request path when no route matches, making it possible to break the metrics down on specific routes / urls in addition to the http method and response code.
 
 Default configuration for the built in metrics are as follows:
 
