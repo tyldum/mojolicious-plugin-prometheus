@@ -42,3 +42,6 @@ inc/
 
 # VSCode
 .vstags
+
+# IDE
+.idea/
