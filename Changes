@@ -1,6 +1,6 @@
 Revision history for Perl extension Mojolicious-Plugin-Prometheus
 
-{{$NEXT}}
+1.4.2 2026-09-25T14:33:50Z
     - Add option "action" which adds an "action" label to the built in http
       metrics, with the matched route or the request path as value, making it
       possible to break the metrics down on specific routes / urls in addition
